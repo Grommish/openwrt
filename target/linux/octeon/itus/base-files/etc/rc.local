@@ -1,0 +1,24 @@
+# Set the front LED to on to show boot finished
+# Orange
+filename="/tmp/sysinfo/board_name"
+
+while read -r line; do
+    mode="$line"
+done < "$filename"
+
+case $mode in
+	"itusbridge")
+		gpio=9
+		;;
+	"itusrouter")
+		gpio=11
+		;;
+	"itusgateway")
+		gpio=10
+		;;
+esac
+
+echo $gpio > /sys/class/gpio/export
+echo out > /sys/class/gpio/gpio$gpio/direction
+echo 0 > /sys/class/gpio/gpio$gpio/value
+echo $gpio > /sys/class/gpio/unexport
