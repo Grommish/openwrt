@@ -20,3 +20,13 @@ define Device/itusbridge
   IMAGE/sysupgrade.tar :+ append-metadata
 endef
 TARGET_DEVICES += itusbridge
+
+ITUSGATEWAY_CMDLINE:=console=ttyS0,115200, root=/dev/mmcblk1p3 rootfstype=squashfs,ext4,f2fs rootwait
+define Device/itusgateway
+  DEVICE_VENDOR := Itus Networks
+  DEVICE_MODEL := Shield Recovery
+  BOARD_NAME := itusgateway
+  CMDLINE := $(ITUSGATEWAY_CMDLINE)
+  IMAGE/sysupgrade.tar :+ append-metadata
+endef
+TARGET_DEVICES += itusgateway
