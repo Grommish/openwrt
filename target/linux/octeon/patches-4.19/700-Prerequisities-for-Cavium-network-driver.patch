@@ -1,0 +1,1290 @@
+From patchwork Wed Dec 13 00:48:45 2017
+Content-Type: text/plain; charset="utf-8"
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7bit
+X-Patchwork-Submitter: David Daney <david.daney@cavium.com>
+X-Patchwork-Id: 862301
+Return-Path: <linux-kernel-owner@vger.kernel.org>
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+        id S1753148AbdLMAtP (ORCPT <rfc822;w@1wt.eu>);
+        Tue, 12 Dec 2017 19:49:15 -0500
+Received: from mail-cys01nam02on0076.outbound.protection.outlook.com
+ ([104.47.37.76]:39646
+        "EHLO NAM02-CY1-obe.outbound.protection.outlook.com"
+        rhost-flags-OK-OK-OK-FAIL) by vger.kernel.org with ESMTP
+        id S1752869AbdLMAtG (ORCPT <rfc822;linux-kernel@vger.kernel.org>);
+        Tue, 12 Dec 2017 19:49:06 -0500
+Authentication-Results: spf=none (sender IP is )
+ smtp.mailfrom=David.Daney@cavium.com;
+From: David Daney <david.daney@cavium.com>
+To: linux-mips@linux-mips.org, ralf@linux-mips.org,
+        James Hogan <james.hogan@mips.com>
+Cc: linux-kernel@vger.kernel.org,
+        "Steven J. Hill" <steven.hill@cavium.com>, netdev@vger.kernel.org,
+        "David S. Miller" <davem@davemloft.net>,
+        Carlos Munoz <cmunoz@cavium.com>,
+        "Steven J . Hill" <Steven.Hill@cavium.com>,
+        David Daney <david.daney@cavium.com>
+Subject: [PATCH v7 1/4] MIPS: Octeon: Enable LMTDMA/LMTST operations.
+Date: Tue, 12 Dec 2017 16:48:45 -0800
+Message-Id: <20171213004848.15086-2-david.daney@cavium.com>
+X-Mailer: git-send-email 2.14.3
+In-Reply-To: <20171213004848.15086-1-david.daney@cavium.com>
+References: <20171213004848.15086-1-david.daney@cavium.com>
+MIME-Version: 1.0
+X-Originating-IP: [50.233.148.156]
+X-ClientProxiedBy: DM5PR07CA0037.namprd07.prod.outlook.com (10.168.109.23) To
+ CY4PR07MB3495.namprd07.prod.outlook.com (10.171.252.152)
+X-MS-PublicTrafficType: Email
+X-MS-Office365-Filtering-Correlation-Id: c0bfd288-701a-4ed3-f9d4-08d541c34f2d
+X-Microsoft-Antispam: 
+ UriScan:;BCL:0;PCL:0;RULEID:(4534020)(4602075)(4627115)(201703031133081)(201702281549075)(5600026)(4604075)(2017052603307);SRVR:CY4PR07MB3495;
+X-Microsoft-Exchange-Diagnostics: 
+ 1;CY4PR07MB3495;3:YspiOjAiRIzpSuETebPhBimWwglqrjWoQRfYDrum0EdCvm/G0eWL85+BffyxtjTuP0A6HeK3ifudDtQcDBOPPZfqrN12Ti6AFHh9uQgGirPo4w3sERFBcfkyOS0Z+6qSFruw7znwMf9k2i5Xg6RL78an0eOPcHSuvRAIHHwjdsuCljKtgwIHjeGanMXNz4UXIaoxDMS+CwK+cIF4lgg8ifXejvDrIKrhk1/SNZl1WyukvOj1QezjjiUiw2/8IxEh;25:/Dpq5sk0x68AZdh2zsk13gFSl4ORIuSwr4+Qx/mqYEXP0WBeU9zrApH1Jl70gRyVWsU31WMJX8YpDeBvpSL7OJaIbON7v+xK4gpDLVbrRDfvcN2TNkPL/7VXmrud5NGnJ25PPB5zLR7xZg2qbN0SmPEIOoc6FQmWWp2TTkhUAMMcRWlwso97m5DKrUpmfheh7eO/SdkJNgWXPR5yEQGf0veso3uOGYrxouC4aU3yn5NiaBj2/ai7eJOcx7TBZoHtKK5tSgV4KsLS97XOotofLYU4gSuPz86iQowk2PsM46WRuTakZHNamHNb2Lg9ImrzRIN0JgjJbx06sreoW5T9EQ==;31:EoxRYmxFTw3xuoXUbtdN4VBbqsN29SSyKZCpADufF+muDH6J82bvI7h9agqB3HFPfg+iJabvVaorZjkUKW44mxgedRaJxD4U1qgrAz1G3xM6mJD1bXuaYfGA00Ae7lc7k1wqPFl93h1lsdYy+q5KWS4PzHVJ57Lu70PIqMBwnDLlRkSbmnLIRjP/J3UXBkFOBZUFlw/YUOrweovPhQfJtVhlRh/mAifQHYNT9GykOW4=
+X-MS-TrafficTypeDiagnostic: CY4PR07MB3495:
+X-Microsoft-Exchange-Diagnostics: 
+ 1;CY4PR07MB3495;20:MVqvKIWfEam0n4zyMMlGEckzUNxCWy1S/ittomFTDN9gplWKFxdTFRrGDSVV76Qxs3xtXQD6WySihonr60J1VAWAbislTqYJdkhEtL523tRWMSkVJ2LCyiW39DNZjx9BjVbXOgLZctwNq4hhX8TEzGM9Vu6JzDZPHVlDqI3gC9G5Wnhs04VcE5CRiNlNvn4S4i0R2sVu6Ly/D8mqi9kua6F5JCMCuwNxmbsxwtiy1URSRySCCurkivEGjHdUzLw02hqwtN7FpLC3Z7em+P/UOX16jG+UBGk96fRKNB5jjsKrOkjGz6of7CNhVyNA8POHdAzQIztHmo1sBprR5y1PtzhrkYfpQFWhRhqwzIfPyTnkDuP9udp3bFCH2LTu8xt3XyyUwZ+c9qSZqp1N28mS+PGn3aGybXKezdX4XNc+hFdlWmgZRqt8bXzXMa/wVrmg8KldJ51egUxa0CG75x6sUbWG2LQXtrxYxT+BipIu/81a74RK1NnQ2gpxQENdkW/c;4:q27OXkFWsPgFUbPTJkmGZfjTdc6W5YoCtvf/1//FrYkuaudWyZ1MgpnyZgHBFv+RjYAy0HMvIdEXzYUh+baVRkwPBUUHEZ/JUiW505xT0jhgEVyCW16lC8udXt2GiXmUJzzl/YxgfaXXkXkfORACJP+jd9CthBTwSzV7ApSfNM5x4wfQt3cAt+daGK134ybwxjDqr2rOLF5wrJZdharOTABchbGqGT9odNDrN7yrgGTEcoC/vTrI7rmhQu0o8D2Gmqv+NRqonQ8q096+/R8IIg==
+X-Microsoft-Antispam-PRVS: 
+ <CY4PR07MB3495E7D0651A73B394CC956F97350@CY4PR07MB3495.namprd07.prod.outlook.com>
+X-Exchange-Antispam-Report-Test: UriScan:;
+X-Exchange-Antispam-Report-CFA-Test: 
+ BCL:0;PCL:0;RULEID:(6040450)(2401047)(8121501046)(5005006)(3002001)(3231023)(93006095)(93001095)(10201501046)(6041248)(20161123560025)(20161123555025)(20161123564025)(20161123562025)(20161123558100)(201703131423075)(201702281528075)(201703061421075)(201703061406153)(6072148)(201708071742011);SRVR:CY4PR07MB3495;BCL:0;PCL:0;RULEID:(100000803101)(100110400095);SRVR:CY4PR07MB3495;
+X-Forefront-PRVS: 052017CAF1
+X-Forefront-Antispam-Report: 
+ SFV:NSPM;SFS:(10009020)(376002)(366004)(346002)(199004)(189003)(106356001)(52116002)(105586002)(53416004)(16526018)(6512007)(16586007)(107886003)(1076002)(4326008)(53936002)(47776003)(25786009)(6506007)(386003)(54906003)(3846002)(2906002)(6486002)(316002)(66066001)(6116002)(69596002)(68736007)(81166006)(5660300001)(6666003)(72206003)(2950100002)(50226002)(36756003)(305945005)(7736002)(8936002)(6916009)(51416003)(81156014)(8676002)(97736004)(76176011)(86362001)(575784001)(48376002)(478600001)(50466002);DIR:OUT;SFP:1101;SCL:1;SRVR:CY4PR07MB3495;H:ddl.caveonetworks.com;FPR:;SPF:None;PTR:InfoNoRecords;A:1;MX:1;LANG:en;
+X-Microsoft-Exchange-Diagnostics: 
+ 1;CY4PR07MB3495;23:EpvPDNxjtrX7ZRrOOJBFXBT6h+sWF8V5EV8hkpK3eXNTworHX8jYwHzZ1fNQwAIXBWN2wDTQs+l8q6G6yaUCAE9z1Hj0bLN5XJ8WaJlG+gZ9CSZ0VNqJuy6q1ls9hNVB9pLPMIVWN3CzEm+FU79HO0Bxt8QimxBFbunJqPWlAGLhYJL3/tQMNFFw9BX2mj6n+YE+csnks9fivEzlilq8etmSH7XQzaU7Gt7x6R8RBIRJie/dL9+g4rTviBxGmEObGdf8SW2pZZes5eK257d1MuhZkfgBBzWBMs3RYJumRk0MiAyNrqd72zhOwHVwYiOZ0Gx9/eq7kZ29dcuASzjoxJwkHvb2rftJqoR6yqrId4Ezx3sgk8wy3tiU8RsRXG2b6VyAN0tH5Bac6kXrSwNubxdQheEzFpbM+Nj+OtsJ3dlVV4RfKd1yTzmcWpa+I8SteNvW1VacLxV5e/B/Zp4i4tW+w3p1er60yZk4ATKltQ6Te5NpvRoc+Csbs8E5hiwofqrZcCTdmVj2PAJpHTCzoK6kXRwYWkAtjH1PpHyiCWz8tehkYP82J/HXJyceZtHigHSf+JV4L0pIL2+bFRojEiwYy/wxeJqHQkgCB3YhUACWKK2WN2CAmkgNrbL5tniY8WdTTFH+eHl1xfS6tWaGCf1o1VOEuGxci4JlbZKlo7BGAL4OGFy6M7AtBSjjobLb7mxzEVcIphNgIskcNvojVynRzXiu2KaVs0F6VRlYZggDE8TTP/tqZXutiXkmrPbsz769X+AMauOeMkabX7DnEDo8rwTSW/1uJyAPAA7sTPDFdeRltBN53VEFD8+PbouFR5MjGMqlI/Jt0NtMskqkkec2xr5PGU8ZSmYnHbFvb+Y2EtrnKnk1iGAjbAlOM9dINqf+U4iocaAd0ayBYSE+TOLvik6NlL0RKU4ctClX9PIShggD8yc2HV+CbEI+ChArZiEjqnj3rwro4lwESN2/DNepXc6g3Ax7huCzhNsLVpNK77zJgHKWiLtwKG+rzG0c+VNuBVQHO/R4u4LpNhevYfJeU1fMP/DHwcMYorDHKpNMbil6L0LPKV7YrpOMa4q9gHm9ELode5dyPD9t3jKWkJ75aYJxcYLF7sKPvpAY8v/1BalH/cd90Vtx+wfVNZth
+X-Microsoft-Exchange-Diagnostics: 
+ 1;CY4PR07MB3495;6:Nx+zBxFapuxYDttHO2vbjxoM8laiFIQt8FpRbUuLe02CTAONjx/atpRL7l48HIcoTmauL+YUMRaj3smhwRmaFMSRwEkbzj/h5CNlDJ+zkuSxCa5EdTLwLIdO9cJJ7IQ8z4ErbP/bXzWJAAne9wgfrKySSbnH4Mix2zsVwlsIt2CC7GQUn7W+CRV91UJ282wqEFFZ48s472JshOccmRLnUqTR4rxCGeCwuB0rmRVSbLdri+uYSJz38xju9XqNasF4OXynRA39u1BfwcxuDnOsuKoTUw43pZ29n3577g0mhXdUr3cdjaVXyFRuXqj+ErkF7Sm9Lz9PhSGshB7yICV/Nnl8JyX37TofRJ44oF3C/YY=;5:l/kX/pT3qEEIiSd9ieDvVtPq5YwT1bJeeyHI+gnXM8Z8F17z8V4ZxBvN2FlV+U4UBoQT0829KUWp3vRhgefvfhtxh2qp6wDu60Dk+pK183HfRwUPZ1a7CME4s4gYp/sDPYLZdrLR+b9KleA2ixsw6vOn69voM7IjH0VbS1LVzds=;24:lV63mmLkCnKQMuSBDZqF/BZhw3JkwTXyfaK+xlWXxA6TTSYrgGTUncwmQSqvuaGselpDu3nxe51MrSszTGup3HGY6YY8MyVpgnDDlZmxqHE=;7:GLrNp1uOrBvoIO89UtsALh4JwEOXBncslX01ilABL9FxoaakEACQ2aAfFtyosiGuwz2p9QU2TeC+yy+KSx4Kb/fZvgkwYKsTetwoCgWcyYZvsMj3w3FR9tx0ru+0XvZ9yirP2p1/Lb7ZUl0OOeYWd5iW5jMHWd5qaxVOgs4P9iLlxW7o/O0XYHQMV2r/0FINAVJnTcHhooCCFxPWx2UTzA+1tDexXJ/8ZMtq8hOfIk6LWgMjjtU6rGl5K3oB7HIv
+SpamDiagnosticOutput: 1:99
+SpamDiagnosticMetadata: NSPM
+X-OriginatorOrg: cavium.com
+X-MS-Exchange-CrossTenant-OriginalArrivalTime: 13 Dec 2017 00:48:58.8134 (UTC)
+X-MS-Exchange-CrossTenant-Network-Message-Id: 
+ c0bfd288-701a-4ed3-f9d4-08d541c34f2d
+X-MS-Exchange-CrossTenant-FromEntityHeader: Hosted
+X-MS-Exchange-CrossTenant-Id: 711e4ccf-2e9b-4bcf-a551-4094005b6194
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: CY4PR07MB3495
+Sender: linux-kernel-owner@vger.kernel.org
+List-ID: <linux-kernel.vger.kernel.org>
+X-Mailing-List: linux-kernel@vger.kernel.org
+Content-Length: 2805
+Lines: 73
+
+From: Carlos Munoz <cmunoz@cavium.com>
+
+LMTDMA/LMTST operations move data between cores and I/O devices:
+
+* LMTST operations can send an address and a variable length
+  (up to 128 bytes) of data to an I/O device.
+* LMTDMA operations can send an address and a variable length
+  (up to 128) of data to the I/O device and then return a
+  variable length (up to 128 bytes) response from the I/O device.
+
+For both LMTST and LMTDMA, the data sent to the device is first stored
+in the CVMSEG core local memory cache line indexed by
+CVMMEMCTL[LMTLINE], the data is then atomically transmitted to the
+device with a store to the CVMSEG LMTDMA trigger location.
+
+Reviewed-by: James Hogan <jhogan@kernel.org>
+Signed-off-by: Carlos Munoz <cmunoz@cavium.com>
+Signed-off-by: Steven J. Hill <Steven.Hill@cavium.com>
+Signed-off-by: David Daney <david.daney@cavium.com>
+---
+ arch/mips/cavium-octeon/setup.c       |  6 ++++++
+ arch/mips/include/asm/octeon/octeon.h | 12 ++++++++++--
+ 2 files changed, 16 insertions(+), 2 deletions(-)
+
+diff --git a/arch/mips/cavium-octeon/setup.c b/arch/mips/cavium-octeon/setup.c
+index a8034d0dcade..99e6a68bc652 100644
+--- a/arch/mips/cavium-octeon/setup.c
++++ b/arch/mips/cavium-octeon/setup.c
+@@ -609,6 +609,12 @@ void octeon_user_io_init(void)
+ #else
+ 	cvmmemctl.s.cvmsegenak = 0;
+ #endif
++	if (OCTEON_IS_OCTEON3()) {
++		/* Enable LMTDMA */
++		cvmmemctl.s.lmtena = 1;
++		/* Scratch line to use for LMT operation */
++		cvmmemctl.s.lmtline = 2;
++	}
+ 	/* R/W If set, CVMSEG is available for loads/stores in
+ 	 * supervisor mode. */
+ 	cvmmemctl.s.cvmsegenas = 0;
+diff --git a/arch/mips/include/asm/octeon/octeon.h b/arch/mips/include/asm/octeon/octeon.h
+index c99c4b6a79f4..92a17d67c1fa 100644
+--- a/arch/mips/include/asm/octeon/octeon.h
++++ b/arch/mips/include/asm/octeon/octeon.h
+@@ -179,7 +179,15 @@ union octeon_cvmemctl {
+ 		/* RO 1 = BIST fail, 0 = BIST pass */
+ 		__BITFIELD_FIELD(uint64_t wbfbist:1,
+ 		/* Reserved */
+-		__BITFIELD_FIELD(uint64_t reserved:17,
++		__BITFIELD_FIELD(uint64_t reserved_52_57:6,
++		/* When set, LMTDMA/LMTST operations are permitted */
++		__BITFIELD_FIELD(uint64_t lmtena:1,
++		/* Selects the CVMSEG LM cacheline used by LMTDMA
++		 * LMTST and wide atomic store operations.
++		 */
++		__BITFIELD_FIELD(uint64_t lmtline:6,
++		/* Reserved */
++		__BITFIELD_FIELD(uint64_t reserved_41_44:4,
+ 		/* OCTEON II - TLB replacement policy: 0 = bitmask LRU; 1 = NLU.
+ 		 * This field selects between the TLB replacement policies:
+ 		 * bitmask LRU or NLU. Bitmask LRU maintains a mask of
+@@ -275,7 +283,7 @@ union octeon_cvmemctl {
+ 		/* R/W Size of local memory in cache blocks, 54 (6912
+ 		 * bytes) is max legal value. */
+ 		__BITFIELD_FIELD(uint64_t lmemsz:6,
+-		;)))))))))))))))))))))))))))))))))
++		;))))))))))))))))))))))))))))))))))))
+ 	} s;
+ };
+ 
+
+From patchwork Wed Dec 13 00:48:46 2017
+Content-Type: text/plain; charset="utf-8"
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7bit
+X-Patchwork-Submitter: David Daney <david.daney@cavium.com>
+X-Patchwork-Id: 862304
+Return-Path: <linux-kernel-owner@vger.kernel.org>
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+        id S1753243AbdLMAuW (ORCPT <rfc822;w@1wt.eu>);
+        Tue, 12 Dec 2017 19:50:22 -0500
+Received: from mail-cys01nam02on0076.outbound.protection.outlook.com
+ ([104.47.37.76]:39646
+        "EHLO NAM02-CY1-obe.outbound.protection.outlook.com"
+        rhost-flags-OK-OK-OK-FAIL) by vger.kernel.org with ESMTP
+        id S1752945AbdLMAtL (ORCPT <rfc822;linux-kernel@vger.kernel.org>);
+        Tue, 12 Dec 2017 19:49:11 -0500
+Authentication-Results: spf=none (sender IP is )
+ smtp.mailfrom=David.Daney@cavium.com;
+From: David Daney <david.daney@cavium.com>
+To: linux-mips@linux-mips.org, ralf@linux-mips.org,
+        James Hogan <james.hogan@mips.com>
+Cc: linux-kernel@vger.kernel.org,
+        "Steven J. Hill" <steven.hill@cavium.com>, netdev@vger.kernel.org,
+        "David S. Miller" <davem@davemloft.net>,
+        David Daney <david.daney@cavium.com>,
+        Carlos Munoz <cmunoz@caviumnetworks.com>
+Subject: [PATCH v7 2/4] MIPS: Octeon: Automatically provision CVMSEG space.
+Date: Tue, 12 Dec 2017 16:48:46 -0800
+Message-Id: <20171213004848.15086-3-david.daney@cavium.com>
+X-Mailer: git-send-email 2.14.3
+In-Reply-To: <20171213004848.15086-1-david.daney@cavium.com>
+References: <20171213004848.15086-1-david.daney@cavium.com>
+MIME-Version: 1.0
+X-Originating-IP: [50.233.148.156]
+X-ClientProxiedBy: DM5PR07CA0037.namprd07.prod.outlook.com (10.168.109.23) To
+ CY4PR07MB3495.namprd07.prod.outlook.com (10.171.252.152)
+X-MS-PublicTrafficType: Email
+X-MS-Office365-Filtering-Correlation-Id: 6396ac8d-e9c0-4c0b-7c5d-08d541c34fd2
+X-Microsoft-Antispam: 
+ UriScan:;BCL:0;PCL:0;RULEID:(4534020)(4602075)(4627115)(201703031133081)(201702281549075)(5600026)(4604075)(2017052603307);SRVR:CY4PR07MB3495;
+X-Microsoft-Exchange-Diagnostics: 
+ 1;CY4PR07MB3495;3:1NEdeBZBzzkBWu6m2W3fM04LaEsrLyrP2NuLjHK0NbkKq59VggMBe00cdXCfK2OxOqStgMSsov26x5l/WO/0hCSAuXsTZhG7GUYma8ZepqqWqPpeveKAtOIohiYxj/nzZluboz0pO7c8SwndXIQCaLAItKCGQ6lSrn2SRHPnr2peTbCRYGCmRUIHoODShC5wNhlToZgSAKkiUeoeQO+Rlj0JkwvVy8OguZKiLtFBX0hjB1FnN4qXZ4sybSCYg4t4;25:Uj6eIPWziMXkriFJyw3PygwhfUOs53dr3/oUlgEDV1KOmAyzR6L3QCmnITw0n7KQrdpqcWhTZYzGH0G8DWahWPCohctI42HcKqqO97aX5sMoUafVCEyn5TmBvJ8KnpqYXq0ZsU0GFthYZJeX4mlIiGeT/+nbn1Xt7ERTWgKgDLqZFsiBnDYoe6uAN+Aw0/IZGUr0MEJI6U/iRLknk4aXLKgOTQnTI/xP1OU6kVnagsh23xUu8TZUXJDpxVrU/eLp6E94CD9kCycYZE3cIZCyAcU1DJt2GMvwFjVlzISvaK4ZQqp9UBjdSx4DaReODLdnXlxW3xmdVnDMh4YuaXsC1okApfn6z8Jlq8LCCbPfVoo=;31:p/9ZaurUOYx9uFnmChFHdmN6lQgP2rDDhR1gdF8KGr64W8mMrBZTkmv5mvgWPQiYVP4n4QNCfeayD3TVp68m9yeIuzQySb9Tk6sLOF3vcnG9EUhoFqC0bTYF2B7u0Qvd228Pdk4CYI7/U+eY/oCCuayD7hZwTF9AxV/RMaDajw3tYef1sU9LqcpB47A4DSrjJDrHK+UsKWFfUaq7Lic536RI27/JZetbR7/ZXwM68HY=
+X-MS-TrafficTypeDiagnostic: CY4PR07MB3495:
+X-Microsoft-Exchange-Diagnostics: 
+ 1;CY4PR07MB3495;20:jHFQhWcI1WLpB9k1ieaDjpVUY9Du+JsgGIS0uYBzqXnAIyDdMoVflEpZoOiAdvBv08/6DpRVBNYFd3YHiGfyPbZCEUwdZwZf1z9w4SFSyxwSEWK9nvXS/dNG4ZVkL3tE00TjBfgiQug7lroHWm4wFAQ0i0OZM+nVu9uZ2NKhPP0PxTyOC5sBpvdHOihYwboRsR85bVzmu7B5T93bVEVVEXY3DSfEShmu7ehwLUzEvecb7yd82Riffxs2q/7pUzl1lv1Z/hw5GT2Yq2uGivpZQRaLtwFLDjtWTu3GOwIoiItIP5u525RH8VNcSaKMAuyzfekOSEY7CSjCh1m6TSf/4ctgHgxD3mN/RpbSQ/V8N8yv7/JZT3inwSxDYPqtgSrzJT22keHwx5sXsm9DYTYGVQoh7au852S0Wp1YMHZMdZWQrQ1FAwtsGfpKnW1FIcv4AowkMl0TqhZrkA7n9NV2EChVZ2EE9uTC44f44U6rdcvizoflmHQ/vdL7OAMHNl2s;4:7DmOph5995dj2LcB86hdGSbSLncYVfBPyAxRk3zlHdBajXuhtq+mhg8R89//y9YNSxMehJ66LZ0ot6JCSZBVNHzRr67A9Ygk2fyEI0oqNhoFyfxrNNidHWJSo4ayEAVjc/cQIqzltJ99qOEGj7TweB+wK9BFtdRsyLY8BoyXCa7w+dAkyUxVJBmsUkkrbUSkjC3mtWifHAkfpXcxEdFhNkWEv0xH2AUorSLEXe8nkgtlE6fir556ddHEYK9NlrLOuJOJIoh0snBlyIh5keYuyw==
+X-Microsoft-Antispam-PRVS: 
+ <CY4PR07MB349512556CE284D328A80ED597350@CY4PR07MB3495.namprd07.prod.outlook.com>
+X-Exchange-Antispam-Report-Test: UriScan:;
+X-Exchange-Antispam-Report-CFA-Test: 
+ BCL:0;PCL:0;RULEID:(6040450)(2401047)(8121501046)(5005006)(3002001)(3231023)(93006095)(93001095)(10201501046)(6041248)(20161123560025)(20161123555025)(20161123564025)(20161123562025)(20161123558100)(201703131423075)(201702281528075)(201703061421075)(201703061406153)(6072148)(201708071742011);SRVR:CY4PR07MB3495;BCL:0;PCL:0;RULEID:(100000803101)(100110400095);SRVR:CY4PR07MB3495;
+X-Forefront-PRVS: 052017CAF1
+X-Forefront-Antispam-Report: 
+ SFV:NSPM;SFS:(10009020)(376002)(366004)(346002)(199004)(189003)(106356001)(52116002)(105586002)(53416004)(16526018)(6512007)(16586007)(107886003)(1076002)(4326008)(53936002)(47776003)(25786009)(6506007)(386003)(54906003)(3846002)(2906002)(6486002)(316002)(66066001)(6116002)(59450400001)(69596002)(68736007)(81166006)(5660300001)(6666003)(72206003)(2950100002)(50226002)(36756003)(305945005)(7736002)(8936002)(6916009)(51416003)(81156014)(8676002)(97736004)(76176011)(86362001)(48376002)(478600001)(50466002);DIR:OUT;SFP:1101;SCL:1;SRVR:CY4PR07MB3495;H:ddl.caveonetworks.com;FPR:;SPF:None;PTR:InfoNoRecords;A:1;MX:1;LANG:en;
+X-Microsoft-Exchange-Diagnostics: 
+ 1;CY4PR07MB3495;23:GGP27i7qxMHyzs8xPCtBuFeE9HuIza16Srtns9cF2008BQYxeNj5X91d33keoWJl+77s99aagekUM7/fOKj7GOTyufZvDchPgHQf1REmPsBjx1DSDVbrtUSP3j41CK3YIQANw88hCh2umrwILuMAtPjmq4CSkIbPSt1ov7mCAuw8ojFsQFOH441nqbv8VoTFvuIVGSmqjXPM/YF5UgDDHWV1CsM7A1Xl3oMyzVBWLIdtVH9TYL2DQ7+/66m+3TNIrhcDTLmAsgikV+jXDDlyqm3PXTDVMwRBQsg1IuukckWUxYk+8/qjF0rBcB3AUOJOTA9ZavbknJu/CzRr7os0+76/6YIGtrVvxM6wUUh2nFX1Uwu3wKNkQnyHn87Rj5PDte9AemIN/sF6We+3jk+T+5mDVU+hSUos6/8Lf+QLDwdxwSiRwwchY6TPV4U/pB+GAdxjFNtkh9Q7vgC5cFasJG3hlFhFjjZrU4d4kkUFTLrSSWTWgOAQ01Oc873O+24wFj01PoWhPFjvppP3rEpshGlm2fC+iBc9DHkUb/DpWHA7hxXp5qcOeIEsx9mLpSVDZIydZtS3q4SJixH0yxaxnqeQ+Zc+0IZlbNl/YJTu2ukqy7aMr9PxWD1pmvkY2q+UwMNOPoSyDJYwuqRUuxtmd//v2XtHi7GkWPvBdfYQcxQR/iPN1LUOgvVmRwNoQhAUWHY8Y0rgcF2kWfXN2CcnzTz88SRcB4D9JsZCqgBaMxNViSMAzuwVtkd++pR7bU3rpshylW8PPHNZoxYhOtRQVETpxHg7+OptOiAiKXOtwv5SF6Pb/b6vSgZBWxFyz+wDjzGDylLMUy3/Qi5NMxJjTzPU2fdzbB2XLgUPT38WedVhQ5GK21x8x+oB3O/gOzlCsoS9/+sMepj7lnl2gTe5fSxWbzSuVJmjXqEwBgBVrjaQYXMMxVpty6BWQygTdIYdH7p36DfylLPH/6BxsEU7K5TE6kEO6FCdwhaYwowPS81kSNVKrOUo7xTLMItOxbHtcHqwF1gVzdVM0H7LCYtzhRREaFLX31z6lFcYke0sBx5FwHdJh/23A+zUujjVWYu1Nqsnuj83Ps8RnMZkSsCO94JcMaRQqIvN2hlfkR5GwPOXcOvaBql1VnjvXWQzNIVHykFGgDdicIOWMAnlICTcMg==
+X-Microsoft-Exchange-Diagnostics: 
+ 1;CY4PR07MB3495;6:HZ3jmJc4Xp16irIl36DLtoj0kVF5eDvh4W0ScLdfLUiHcSWl1gwr52Du/PE5OffPJoYAUr/GfK7UO/OcKGQVA7LGYpgkDkwTbSrbaA2pNdRorJb07Yuzpiw0ZdsE2iQ+8eSQjOqPzYy9ePRXfD6iNgr4bZOPkNkE9syRcdrkJbQoV6ybea96BN7RRW7yGTsyPGNJzSB2Sr5C/VRniMM71vwmqmoR8mzrdJqWM4aLNc3R8ldvmkgajje1KYW6oSF5cV6aBglvkUnhYAAi8A1rxECnriFbZXzDThK3b6hOPpdVvuaimmn73ug/2bDQxTi7LXcxfYBZa0+hSSz+juW7SLy73FlYrMsVbAJ1ftzo7V0=;5:BGlwKvRxizXBEq0r2f9DEXUzid31cl8ZGYloCe3bfeAfUxm9CkI78rILvqDLBw3Ykn+CaVEp9DizfxMk1GQBTGi4WOaAl/bOY2pz5KUfsIpzkWXNuNxV4z7aFMP1rAcDWLqI6dT4+3Hgiam+VyauBYnTxSbQpBW2qMDqk9ccwBQ=;24:dvQlqJOBjy/zLOtru+LI9nlbyOf4hdZYlcsvLdyytsHTPCUAC7zHHpMIICrWQR4ty8IJfULHHWc379z7HZ5epqnho3zUhWP+N3D4at3iAzc=;7:g1itlEVszwZ+kB8zsT5Mocwo1gE7oA9dvaMWdgNw5nbBDe6tlk5JysAw1ubAfRvPqAJXIuiYXOh2ZAXc+6W+PAyRaSYQNovsiK5DdKCtdeTubawCG8S0NU62YXvvAo6tFN4IHyfEYZ4/cwd11N+o6UkSIA14Cuu2wh2QTZWRPTOeNlCwtTxOwCwrcU26dv8mUmVzQ/8zRC4ji5tu6LImwZISTB6sWlVOMzsKgUNu5s31VpE0lSEojDt0iW5s0GtM
+SpamDiagnosticOutput: 1:99
+SpamDiagnosticMetadata: NSPM
+X-OriginatorOrg: cavium.com
+X-MS-Exchange-CrossTenant-OriginalArrivalTime: 13 Dec 2017 00:49:04.9384 (UTC)
+X-MS-Exchange-CrossTenant-Network-Message-Id: 
+ 6396ac8d-e9c0-4c0b-7c5d-08d541c34fd2
+X-MS-Exchange-CrossTenant-FromEntityHeader: Hosted
+X-MS-Exchange-CrossTenant-Id: 711e4ccf-2e9b-4bcf-a551-4094005b6194
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: CY4PR07MB3495
+Sender: linux-kernel-owner@vger.kernel.org
+List-ID: <linux-kernel.vger.kernel.org>
+X-Mailing-List: linux-kernel@vger.kernel.org
+Content-Length: 9829
+Lines: 291
+
+Remove CONFIG_CAVIUM_OCTEON_CVMSEG_SIZE and automatically calculate
+the amount of CVMSEG space needed.
+
+1st 128-bytes: Use by IOBDMA
+2nd 128-bytes: Reserved by kernel for scratch/TLS emulation.
+3rd 128-bytes: OCTEON-III LMTLINE
+
+New config variable CONFIG_CAVIUM_OCTEON_EXTRA_CVMSEG provisions
+additional lines, defaults to zero.
+
+Signed-off-by: David Daney <david.daney@cavium.com>
+Signed-off-by: Carlos Munoz <cmunoz@caviumnetworks.com>
+---
+ arch/mips/cavium-octeon/Kconfig                    | 27 ++++++++++++--------
+ arch/mips/cavium-octeon/setup.c                    | 16 ++++++------
+ .../asm/mach-cavium-octeon/kernel-entry-init.h     | 20 +++++++++------
+ arch/mips/include/asm/mipsregs.h                   |  2 ++
+ arch/mips/include/asm/octeon/octeon.h              |  2 ++
+ arch/mips/include/asm/processor.h                  |  2 +-
+ arch/mips/kernel/octeon_switch.S                   |  2 --
+ arch/mips/mm/tlbex.c                               | 29 ++++++----------------
+ drivers/staging/octeon/ethernet-defines.h          |  2 +-
+ 9 files changed, 50 insertions(+), 52 deletions(-)
+
+diff --git a/arch/mips/cavium-octeon/Kconfig b/arch/mips/cavium-octeon/Kconfig
+index 204a1670fd9b..a50d1aa5863b 100644
+--- a/arch/mips/cavium-octeon/Kconfig
++++ b/arch/mips/cavium-octeon/Kconfig
+@@ -11,21 +11,26 @@ config CAVIUM_CN63XXP1
+ 	  non-CN63XXP1 hardware, so it is recommended to select "n"
+ 	  unless it is known the workarounds are needed.
+ 
+-config CAVIUM_OCTEON_CVMSEG_SIZE
+-	int "Number of L1 cache lines reserved for CVMSEG memory"
+-	range 0 54
+-	default 1
+-	help
+-	  CVMSEG LM is a segment that accesses portions of the dcache as a
+-	  local memory; the larger CVMSEG is, the smaller the cache is.
+-	  This selects the size of CVMSEG LM, which is in cache blocks. The
+-	  legally range is from zero to 54 cache blocks (i.e. CVMSEG LM is
+-	  between zero and 6192 bytes).
+-
+ endif # CPU_CAVIUM_OCTEON
+ 
+ if CAVIUM_OCTEON_SOC
+ 
++config CAVIUM_OCTEON_EXTRA_CVMSEG
++	int "Number of extra L1 cache lines reserved for CVMSEG memory"
++	range 0 50
++	default 0
++	help
++	  CVMSEG LM is a segment that accesses portions of the dcache
++	  as a local memory; the larger CVMSEG is, the smaller the
++	  cache is.  The kernel uses two or three blocks (one for TLB
++	  exception handlers, one for driver IOBDMA operations, and on
++	  models that need it, one for LMTDMA operations). This
++	  selects an optional extra number of CVMSEG lines for use by
++	  other software.
++
++	  Normally no extra lines are required, and this parameter
++	  should be set to zero.
++
+ config CAVIUM_OCTEON_LOCK_L2
+ 	bool "Lock often used kernel code in the L2"
+ 	default "y"
+diff --git a/arch/mips/cavium-octeon/setup.c b/arch/mips/cavium-octeon/setup.c
+index 99e6a68bc652..51c4d3c3cada 100644
+--- a/arch/mips/cavium-octeon/setup.c
++++ b/arch/mips/cavium-octeon/setup.c
+@@ -68,6 +68,12 @@ extern void pci_console_init(const char *arg);
+ static unsigned long long max_memory = ULLONG_MAX;
+ static unsigned long long reserve_low_mem;
+ 
++/*
++ * modified in hernel-entry-init.h, must have an initial value to keep
++ * it from being clobbered when bss is zeroed.
++ */
++u32 octeon_cvmseg_lines = 2;
++
+ DEFINE_SEMAPHORE(octeon_bootbus_sem);
+ EXPORT_SYMBOL(octeon_bootbus_sem);
+ 
+@@ -604,11 +610,7 @@ void octeon_user_io_init(void)
+ 
+ 	/* R/W If set, CVMSEG is available for loads/stores in
+ 	 * kernel/debug mode. */
+-#if CONFIG_CAVIUM_OCTEON_CVMSEG_SIZE > 0
+ 	cvmmemctl.s.cvmsegenak = 1;
+-#else
+-	cvmmemctl.s.cvmsegenak = 0;
+-#endif
+ 	if (OCTEON_IS_OCTEON3()) {
+ 		/* Enable LMTDMA */
+ 		cvmmemctl.s.lmtena = 1;
+@@ -626,9 +628,9 @@ void octeon_user_io_init(void)
+ 
+ 	/* Setup of CVMSEG is done in kernel-entry-init.h */
+ 	if (smp_processor_id() == 0)
+-		pr_notice("CVMSEG size: %d cache lines (%d bytes)\n",
+-			  CONFIG_CAVIUM_OCTEON_CVMSEG_SIZE,
+-			  CONFIG_CAVIUM_OCTEON_CVMSEG_SIZE * 128);
++		pr_notice("CVMSEG size: %u cache lines (%u bytes)\n",
++			  octeon_cvmseg_lines,
++			  octeon_cvmseg_lines * 128);
+ 
+ 	if (octeon_has_feature(OCTEON_FEATURE_FAU)) {
+ 		union cvmx_iob_fau_timeout fau_timeout;
+diff --git a/arch/mips/include/asm/mach-cavium-octeon/kernel-entry-init.h b/arch/mips/include/asm/mach-cavium-octeon/kernel-entry-init.h
+index c38b38ce5a3d..cdcca60978a2 100644
+--- a/arch/mips/include/asm/mach-cavium-octeon/kernel-entry-init.h
++++ b/arch/mips/include/asm/mach-cavium-octeon/kernel-entry-init.h
+@@ -26,11 +26,18 @@
+ 	# a3 = address of boot descriptor block
+ 	.set push
+ 	.set arch=octeon
++	mfc0	v1, CP0_PRID_REG
++	andi	v1, 0xff00
++	li	v0, 0x9500		# cn78XX or later
++	subu	v1, v1, v0
++	li	t2, 2 + CONFIG_CAVIUM_OCTEON_EXTRA_CVMSEG
++	bltz	v1, 1f
++	addiu	t2, 1			# t2 has cvmseg_size
++1:
+ 	# Read the cavium mem control register
+ 	dmfc0	v0, CP0_CVMMEMCTL_REG
+ 	# Clear the lower 6 bits, the CVMSEG size
+-	dins	v0, $0, 0, 6
+-	ori	v0, CONFIG_CAVIUM_OCTEON_CVMSEG_SIZE
++	dins	v0, t2, 0, 6
+ 	dmtc0	v0, CP0_CVMMEMCTL_REG	# Write the cavium mem control register
+ 	dmfc0	v0, CP0_CVMCTL_REG	# Read the cavium control register
+ 	# Disable unaligned load/store support but leave HW fixup enabled
+@@ -70,7 +77,7 @@
+ 	# Flush dcache after config change
+ 	cache	9, 0($0)
+ 	# Zero all of CVMSEG to make sure parity is correct
+-	dli	v0, CONFIG_CAVIUM_OCTEON_CVMSEG_SIZE
++	move	v0, t2
+ 	dsll	v0, 7
+ 	beqz	v0, 2f
+ 1:	dsubu	v0, 8
+@@ -126,12 +133,7 @@
+ 	LONG_L	sp, (t0)
+ 	# Set the SP global variable to zero so the master knows we've started
+ 	LONG_S	zero, (t0)
+-#ifdef __OCTEON__
+-	syncw
+-	syncw
+-#else
+ 	sync
+-#endif
+ 	# Jump to the normal Linux SMP entry point
+ 	j   smp_bootstrap
+ 	nop
+@@ -148,6 +150,8 @@
+ 
+ #endif /* CONFIG_SMP */
+ octeon_main_processor:
++	dla	v0, octeon_cvmseg_lines
++	sw	t2, 0(v0)
+ 	.set pop
+ .endm
+ 
+diff --git a/arch/mips/include/asm/mipsregs.h b/arch/mips/include/asm/mipsregs.h
+index 6b1f1ad0542c..0b588640b65a 100644
+--- a/arch/mips/include/asm/mipsregs.h
++++ b/arch/mips/include/asm/mipsregs.h
+@@ -1126,6 +1126,8 @@
+ #define FPU_CSR_RD	0x3	/* towards -Infinity */
+ 
+ 
++#define CAVIUM_OCTEON_SCRATCH_OFFSET (2 * 128 - 16 - 32768)
++
+ #ifndef __ASSEMBLY__
+ 
+ /*
+diff --git a/arch/mips/include/asm/octeon/octeon.h b/arch/mips/include/asm/octeon/octeon.h
+index 92a17d67c1fa..f01af2469874 100644
+--- a/arch/mips/include/asm/octeon/octeon.h
++++ b/arch/mips/include/asm/octeon/octeon.h
+@@ -359,6 +359,8 @@ static inline uint32_t octeon_npi_read32(uint64_t address)
+ 
+ extern struct cvmx_bootinfo *octeon_bootinfo;
+ 
++extern u32 octeon_cvmseg_lines;
++
+ extern uint64_t octeon_bootloader_entry_addr;
+ 
+ extern void (*octeon_irq_setup_secondary)(void);
+diff --git a/arch/mips/include/asm/processor.h b/arch/mips/include/asm/processor.h
+index af34afbc32d9..1a20f9c5509f 100644
+--- a/arch/mips/include/asm/processor.h
++++ b/arch/mips/include/asm/processor.h
+@@ -216,7 +216,7 @@ struct octeon_cop2_state {
+ 	.cp2			= {0,},
+ 
+ struct octeon_cvmseg_state {
+-	unsigned long cvmseg[CONFIG_CAVIUM_OCTEON_CVMSEG_SIZE]
++	unsigned long cvmseg[CONFIG_CAVIUM_OCTEON_EXTRA_CVMSEG + 3]
+ 			    [cpu_dcache_line_size() / sizeof(unsigned long)];
+ };
+ 
+diff --git a/arch/mips/kernel/octeon_switch.S b/arch/mips/kernel/octeon_switch.S
+index e42113fe2762..4f56902d5ee7 100644
+--- a/arch/mips/kernel/octeon_switch.S
++++ b/arch/mips/kernel/octeon_switch.S
+@@ -29,7 +29,6 @@
+ 	cpu_save_nonscratch a0
+ 	LONG_S	ra, THREAD_REG31(a0)
+ 
+-#if CONFIG_CAVIUM_OCTEON_CVMSEG_SIZE > 0
+ 	/* Check if we need to store CVMSEG state */
+ 	dmfc0	t0, $11,7	/* CvmMemCtl */
+ 	bbit0	t0, 6, 3f	/* Is user access enabled? */
+@@ -58,7 +57,6 @@
+ 	dmfc0	t0, $11,7	/* CvmMemCtl */
+ 	xori	t0, t0, 0x40	/* Bit 6 is CVMSEG user enable */
+ 	dmtc0	t0, $11,7	/* CvmMemCtl */
+-#endif
+ 3:
+ 
+ #if defined(CONFIG_CC_STACKPROTECTOR) && !defined(CONFIG_SMP)
+diff --git a/arch/mips/mm/tlbex.c b/arch/mips/mm/tlbex.c
+index 79b9f2ad3ff5..3d3dfba465ae 100644
+--- a/arch/mips/mm/tlbex.c
++++ b/arch/mips/mm/tlbex.c
+@@ -115,33 +115,17 @@ static int use_lwx_insns(void)
+ 		return 0;
+ 	}
+ }
+-#if defined(CONFIG_CAVIUM_OCTEON_CVMSEG_SIZE) && \
+-    CONFIG_CAVIUM_OCTEON_CVMSEG_SIZE > 0
+-static bool scratchpad_available(void)
+-{
+-	return true;
+-}
+-static int scratchpad_offset(int i)
+-{
+-	/*
+-	 * CVMSEG starts at address -32768 and extends for
+-	 * CAVIUM_OCTEON_CVMSEG_SIZE 128 byte cache lines.
+-	 */
+-	i += 1; /* Kernel use starts at the top and works down. */
+-	return CONFIG_CAVIUM_OCTEON_CVMSEG_SIZE * 128 - (8 * i) - 32768;
+-}
+-#else
+-static bool scratchpad_available(void)
+-{
+-	return false;
+-}
++
+ static int scratchpad_offset(int i)
+ {
++	if (IS_ENABLED(CONFIG_CPU_CAVIUM_OCTEON))
++		return (CAVIUM_OCTEON_SCRATCH_OFFSET - (8 * i));
++
+ 	BUG();
+ 	/* Really unreachable, but evidently some GCC want this. */
+ 	return 0;
+ }
+-#endif
++
+ /*
+  * Found by experiment: At least some revisions of the 4kc throw under
+  * some circumstances a machine check exception, triggered by invalid
+@@ -1302,7 +1286,8 @@ static void build_r4000_tlb_refill_handler(void)
+ 	memset(relocs, 0, sizeof(relocs));
+ 	memset(final_handler, 0, sizeof(final_handler));
+ 
+-	if (IS_ENABLED(CONFIG_64BIT) && (scratch_reg >= 0 || scratchpad_available()) && use_bbit_insns()) {
++	if (IS_ENABLED(CONFIG_64BIT) && use_bbit_insns() &&
++	   (scratch_reg >= 0 || IS_ENABLED(CONFIG_CPU_CAVIUM_OCTEON))) {
+ 		htlb_info = build_fast_tlb_refill_handler(&p, &l, &r, K0, K1,
+ 							  scratch_reg);
+ 		vmalloc_mode = refill_scratch;
+diff --git a/drivers/staging/octeon/ethernet-defines.h b/drivers/staging/octeon/ethernet-defines.h
+index 07bd2b87f6a0..e898df25b87f 100644
+--- a/drivers/staging/octeon/ethernet-defines.h
++++ b/drivers/staging/octeon/ethernet-defines.h
+@@ -32,7 +32,7 @@
+ #define REUSE_SKBUFFS_WITHOUT_FREE  1
+ #endif
+ 
+-#define USE_ASYNC_IOBDMA            (CONFIG_CAVIUM_OCTEON_CVMSEG_SIZE > 0)
++#define USE_ASYNC_IOBDMA	1
+ 
+ /* Maximum number of SKBs to try to free per xmit packet. */
+ #define MAX_OUT_QUEUE_DEPTH 1000
+
+From patchwork Wed Dec 13 00:48:47 2017
+Content-Type: text/plain; charset="utf-8"
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7bit
+X-Patchwork-Submitter: David Daney <david.daney@cavium.com>
+X-Patchwork-Id: 862302
+Return-Path: <linux-kernel-owner@vger.kernel.org>
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+        id S1753173AbdLMAtZ (ORCPT <rfc822;w@1wt.eu>);
+        Tue, 12 Dec 2017 19:49:25 -0500
+Received: from mail-cys01nam02on0076.outbound.protection.outlook.com
+ ([104.47.37.76]:39646
+        "EHLO NAM02-CY1-obe.outbound.protection.outlook.com"
+        rhost-flags-OK-OK-OK-FAIL) by vger.kernel.org with ESMTP
+        id S1753145AbdLMAtP (ORCPT <rfc822;linux-kernel@vger.kernel.org>);
+        Tue, 12 Dec 2017 19:49:15 -0500
+Authentication-Results: spf=none (sender IP is )
+ smtp.mailfrom=David.Daney@cavium.com;
+From: David Daney <david.daney@cavium.com>
+To: linux-mips@linux-mips.org, ralf@linux-mips.org,
+        James Hogan <james.hogan@mips.com>
+Cc: linux-kernel@vger.kernel.org,
+        "Steven J. Hill" <steven.hill@cavium.com>, netdev@vger.kernel.org,
+        "David S. Miller" <davem@davemloft.net>,
+        David Daney <david.daney@cavium.com>
+Subject: [PATCH v7 3/4] staging: octeon: Remove USE_ASYNC_IOBDMA macro.
+Date: Tue, 12 Dec 2017 16:48:47 -0800
+Message-Id: <20171213004848.15086-4-david.daney@cavium.com>
+X-Mailer: git-send-email 2.14.3
+In-Reply-To: <20171213004848.15086-1-david.daney@cavium.com>
+References: <20171213004848.15086-1-david.daney@cavium.com>
+MIME-Version: 1.0
+X-Originating-IP: [50.233.148.156]
+X-ClientProxiedBy: DM5PR07CA0037.namprd07.prod.outlook.com (10.168.109.23) To
+ CY4PR07MB3495.namprd07.prod.outlook.com (10.171.252.152)
+X-MS-PublicTrafficType: Email
+X-MS-Office365-Filtering-Correlation-Id: 9c3c06e4-7d4c-4608-d7d5-08d541c3506f
+X-Microsoft-Antispam: 
+ UriScan:;BCL:0;PCL:0;RULEID:(4534020)(4602075)(4627115)(201703031133081)(201702281549075)(5600026)(4604075)(2017052603307);SRVR:CY4PR07MB3495;
+X-Microsoft-Exchange-Diagnostics: 
+ 1;CY4PR07MB3495;3:/8zqa70hDdVajM6Zeg6dlQHIUryGKavBnx3sGOiJa0BPmU1PKrYTFFuMtlr9ZCfsTvq8tpB3Je4DXOYzfbVLs7ExygbCpz2vowRM/+/kXzvkc/9DxtK8kmRBoMXaPC1j7C909ggbDIfn6teVdVVvyIMr+RNkD/FKZVi24XBAzGIm7YLuLmxsOggOf5m2HCuYXK3oi4TGhUx+xALCWQ7Cqel/z7uFxKATliYCvkIlWrB/9AZDUudnQa44zPHW9cNB;25:wgLYBh1wICGZx2ECM6djOGm+NQ0Fx0AMAsHPTRoBPPKrKNJgI4dBqc1twSlI4u8ZpWzH8CXr51AcYO/3Xe5dbDQrVCf+hsUXCj28Rhb9yt34pv0FpV7BMvz6M4LcPC8l7SpOh3v2aRUb1HqicGsJpNiSdCUysx1I+D5kgL7IFZEdeqH75/gromb9bd/3U5LY+QS02vpolIN7Whe8MbPE2gr3skXUe/hNOKjKewm9kdHB9e5ngHLy5lEhlT5HyFGBqOw75OenT7YpNpfLnqNsCnXfhaXKwZlQFDALzcR3C15L1Kokk5wF1PULitVqYFuN/kC6PkStjChX5mDgRi3a1g==;31:rMgALfAEAPSL2TRkiYBXF3iz0bGY1Zv0hHPFwxtoNqWY0UxjTjgfhdPMhXBeqx/b54LqQnEzJDygY97MYFYFLc+30xRVJe7xaEQMgAwxy8OfkcScpdQhSOjMzNcvZuDw7HwC+KhGN+s+7bDoXX6E8af8BXAzWxth+mHvQYStyndF1zqUKL8+exNgNRnD/34789w0VuYLUfNaPMo9ddYxCS00hpLlCBFHIopwlXEYBq0=
+X-MS-TrafficTypeDiagnostic: CY4PR07MB3495:
+X-Microsoft-Exchange-Diagnostics: 
+ 1;CY4PR07MB3495;20:RJxUkvk6ntpkjqXHD6AB3WCit7edzJtRV2BQCFtWUi4cTpL/lk9yK1+k+Ezkvguebe2cE5ST+rkJ4LlgC0Zl7wWE8GJgE4kWBtEybRslh6tW1qo2YrfEYSWBH9g6HkUrgcytdWw6UXJiJ295gsTUR0OziFVA6cBQmGRuYn2s6F36wj7Hd+uf3soEd17rrE472pLGczrMmIQz4yTP8YXPwNnX1MokNE+9joGlpiGihWIT9P9HKaDTFK0RE0HiQ/WQfgUQb3lUWxhyMyza/o6i+qwnhNoaGTEawPGW2v6S4Fr73L+kPaf7cwYuF3L2daFpLCrGmJTzHf14UUT32/3/ZfqMsaNQFkB4QWDQUNQd3jK6WjahPhP6ovZ3JuC+sEAODL+0esRlD2I1hrGy41vc4/6bhX7JsYC442wNFr82HI1hX6wcX/RqX6qi0qa41+aukgsgyqP54/ySmUYbl/lTuVgLA/Kb42Qsoy994cMLDJjzfvZTfkQdMoivgkGAWCH1;4:sAXKRWyQWG97fZkTpgbe+skRxXNp/NxjGTGbNRMiznXAIp4iWbObYqIiZpIBqWCmZT0WCvO4OgNRTj1GqRLAzBGkfXNc31CRKFQHwtoIkba2Cd6hdpfAd72rzv2d8rbzAJZCsDPnmmyqTrbOUkC1wvsrT4TvAa+9dXjdWisy4ezFPLKfOaZwjAwvVWE/RCEwNz75zH4kVcqS3fHexQ1piuHd8CorjaA2lTAbQPLPQL13FGnjrZR5JGVLzuzGQiyBXGhEiam/KIjPBohcB6hyyg==
+X-Microsoft-Antispam-PRVS: 
+ <CY4PR07MB34956BC8276DEDB36F29AECB97350@CY4PR07MB3495.namprd07.prod.outlook.com>
+X-Exchange-Antispam-Report-Test: UriScan:;
+X-Exchange-Antispam-Report-CFA-Test: 
+ BCL:0;PCL:0;RULEID:(6040450)(2401047)(8121501046)(5005006)(3002001)(3231023)(93006095)(93001095)(10201501046)(6041248)(20161123560025)(20161123555025)(20161123564025)(20161123562025)(20161123558100)(201703131423075)(201702281528075)(201703061421075)(201703061406153)(6072148)(201708071742011);SRVR:CY4PR07MB3495;BCL:0;PCL:0;RULEID:(100000803101)(100110400095);SRVR:CY4PR07MB3495;
+X-Forefront-PRVS: 052017CAF1
+X-Forefront-Antispam-Report: 
+ SFV:NSPM;SFS:(10009020)(376002)(366004)(346002)(199004)(189003)(106356001)(52116002)(105586002)(53416004)(16526018)(6512007)(16586007)(107886003)(1076002)(4326008)(53936002)(47776003)(25786009)(6506007)(386003)(54906003)(3846002)(2906002)(6486002)(316002)(66066001)(6116002)(59450400001)(69596002)(68736007)(81166006)(5660300001)(6666003)(72206003)(2950100002)(50226002)(36756003)(305945005)(7736002)(8936002)(6916009)(51416003)(81156014)(8676002)(97736004)(76176011)(86362001)(48376002)(478600001)(50466002);DIR:OUT;SFP:1101;SCL:1;SRVR:CY4PR07MB3495;H:ddl.caveonetworks.com;FPR:;SPF:None;PTR:InfoNoRecords;A:1;MX:1;LANG:en;
+X-Microsoft-Exchange-Diagnostics: 
+ 1;CY4PR07MB3495;23:fFc+TVKPY6K5RqXXfc5KF19vHPphtXmb86jLcGZvVQP/khxO+Lsrqd9nD3sF8nz7Qu4g1kbASLe82WoStvvA5CMb8myDZANA/FFdrAIiPq4dSYWUWYNuAEZ8JOL+sjG2PuLi2bptDwUzHFRFVd5fPRhh6jWYqGbC411FncJL9/diws1vV+YYErhL30XbDk1jjYb7oSSJRqdhw5uaxD0FWsKi3FXPCutf2bhmSR32/yFO8Pcg2qUR3HagWzesv0bgXDzZkTFSh44czlv7F2x3c1bnrK5ATi2OQDgRI9ZddpWdQh4vIufq01PLlraZJXBcowEbYTEoQEK2cCPUxQEKYG4SnBizPltdOZ87mvU7V2l0D7am9BXirBDGsfodam0lashPK5HiH7meTPDSaFDtSHvBEUc0Vv1X45vS0MexuqxJ3WOVHsOfSuom3v1RMO02PLEBdEs7hil4tLxECNHRM7CQalYZNP9efXwLPz0WpLIVEBnx87591PiDyd3y2+xYCLec1cW8UOcrrseDBGAdqDFCK1bu9ifk96EIMLbKU48xNJixIWovZ1HqjcdAfwaQMLEpF24fLcq9VBiy3YEh/FVcm0TH9813GwPYOLN5dQ4XwdYE+T38qOwDZ6f6EYPI81WSzOIWFicDnL+uxyDXtJxmLfZ/C9zZ4sqTE30mt1EXKTbXHEsVe4ZCUSwNXlD3n2etdaX8PjVQ5SS85AjCIp8R72ui5NwyooHIGU1b6uxDZ2t0KmKhERP3CyRT5b7FrWQMH8FbC1njoLEQsUDuR7PheNjNfS6g5bqRj+aBpGfMPczKjc6VWFd7dHtZzCcbawSf8WxYtXMO+/Wj96pTUCt2jk176LRKHYdS5TF+RxbAim16ad+ROx8i2sn37+V5p5t0o8EUtGZeL4R41YfyFUYA+9y7KBOCDTdPQlc5B7AgEoRhtTK0qM4KvY9GgVOeQ1ABn40/Dg19NOHjcD/xDkvN3khI8+dHwXtKbrDPcCVYhO0S/DoZKhJt0/aOB4U9Lx9KYdrU3g5TJWysPOmWr2IctKwMapCUWT7Oswkwae4hIkpPOBIEzqHHwDdBMmUWWNm3O5DU5I/HgCeNlq/25oAbid9fbGGZSNxIr0B8PcoVOriAASSbzC95IO2KO96RLwPSwL71H/aEQzgJFuBlRg==
+X-Microsoft-Exchange-Diagnostics: 
+ 1;CY4PR07MB3495;6:7FsdE92PQIYGwylGlROjNxXQXjoXUvYz44rUGcHtwjoN+MUPAr0FoPhjgdGFUJCVBDS4GiGhjGYD6pcRRIrprSOjxc0zP2tYMqWbwruL0V1w/ppiLTuXsVwOY/erOxIuPU3ue1/U0FEw0+appQo2OUULty0dKoPBnD8+AYQvbenpWn0LxPUyDhUh5uOPMQ25rxiNMqoVy0YRm491bQV11gjzXY+PsTCpQ8D4T1VBVnns1266nJMQH1k1eg5c3/UIEV3nyvph8pdRq5bUJESCyurqRPpUYOBxlPBzQiBe4UjIfokoTub6UTQbUxRvi20GJDDPHq0+bjS0iRARA6+OTEBGVY7G/pjt73HZJdL8NNo=;5:Z/72jxryD+jue1mO+x97G8wO6qOKVkCiv8E8flHxko5T/H5uo6TLUKa65Q3+Xr72lP/Yy/+eHZsRDpcIGQ9TLW2ZEWER5PeVzoxnPxhMcUDhCVPXRNURINlQRxV45AM7W7wXucnAbsepE6o2Iu2Tu8+7zuF73pBJyhEAsW2i/28=;24:336WYQR1ar/NgNMspEBy3YAu3d52D2rgQM8fUm3H0PvAuF88oe9xhkSSGjr6ZmPQwvApjTXDTHbEG8nip5Y6gj2gZp7nE0p00y6wRrN70es=;7:GJ1JJdCjZoSk+t+nmFM9Rc9YgNRywZgan/Lm6M1sP8ofckWh9J3LxMHynbrt5RkzdU8uClH45xyyMWDXW6FjQS19TOheqvWKODgjNHMvR/V7goQYAaReKOgNtWlOwMu4vw86lmrdo9fRDD2ASv1TYjHcAIWM0rlz2VLuXV4YM47iamS8uDeespFKKGJ4wpNIgqSfp4WSH2y8w/dCAmMKJoOnWrPb0CIjJ08VGzlvbm75nxvWdWz0CLYl3KxFWYEb
+SpamDiagnosticOutput: 1:99
+SpamDiagnosticMetadata: NSPM
+X-OriginatorOrg: cavium.com
+X-MS-Exchange-CrossTenant-OriginalArrivalTime: 13 Dec 2017 00:49:06.0634 (UTC)
+X-MS-Exchange-CrossTenant-Network-Message-Id: 
+ 9c3c06e4-7d4c-4608-d7d5-08d541c3506f
+X-MS-Exchange-CrossTenant-FromEntityHeader: Hosted
+X-MS-Exchange-CrossTenant-Id: 711e4ccf-2e9b-4bcf-a551-4094005b6194
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: CY4PR07MB3495
+Sender: linux-kernel-owner@vger.kernel.org
+List-ID: <linux-kernel.vger.kernel.org>
+X-Mailing-List: linux-kernel@vger.kernel.org
+Content-Length: 7980
+Lines: 226
+
+Previous patch sets USE_ASYNC_IOBDMA to 1 unconditionally.  Remove
+USE_ASYNC_IOBDMA from all if statements.  Remove dead code caused by
+the change.
+
+Acked-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Signed-off-by: David Daney <david.daney@cavium.com>
+---
+ drivers/staging/octeon/ethernet-defines.h |  6 ---
+ drivers/staging/octeon/ethernet-rx.c      | 25 ++++-----
+ drivers/staging/octeon/ethernet-tx.c      | 85 ++++++++++---------------------
+ 3 files changed, 37 insertions(+), 79 deletions(-)
+
+diff --git a/drivers/staging/octeon/ethernet-defines.h b/drivers/staging/octeon/ethernet-defines.h
+index e898df25b87f..21438c804a43 100644
+--- a/drivers/staging/octeon/ethernet-defines.h
++++ b/drivers/staging/octeon/ethernet-defines.h
+@@ -10,10 +10,6 @@
+ 
+ /*
+  * A few defines are used to control the operation of this driver:
+- *  USE_ASYNC_IOBDMA
+- *      Use asynchronous IO access to hardware. This uses Octeon's asynchronous
+- *      IOBDMAs to issue IO accesses without stalling. Set this to zero
+- *      to disable this. Note that IOBDMAs require CVMSEG.
+  *  REUSE_SKBUFFS_WITHOUT_FREE
+  *      Allows the TX path to free an skbuff into the FPA hardware pool. This
+  *      can significantly improve performance for forwarding and bridging, but
+@@ -32,8 +28,6 @@
+ #define REUSE_SKBUFFS_WITHOUT_FREE  1
+ #endif
+ 
+-#define USE_ASYNC_IOBDMA	1
+-
+ /* Maximum number of SKBs to try to free per xmit packet. */
+ #define MAX_OUT_QUEUE_DEPTH 1000
+ 
+diff --git a/drivers/staging/octeon/ethernet-rx.c b/drivers/staging/octeon/ethernet-rx.c
+index 1a44291318ee..dd76c99d5ae0 100644
+--- a/drivers/staging/octeon/ethernet-rx.c
++++ b/drivers/staging/octeon/ethernet-rx.c
+@@ -201,11 +201,9 @@ static int cvm_oct_poll(struct oct_rx_group *rx_group, int budget)
+ 	/* Prefetch cvm_oct_device since we know we need it soon */
+ 	prefetch(cvm_oct_device);
+ 
+-	if (USE_ASYNC_IOBDMA) {
+-		/* Save scratch in case userspace is using it */
+-		CVMX_SYNCIOBDMA;
+-		old_scratch = cvmx_scratch_read64(CVMX_SCR_SCRATCH);
+-	}
++	/* Save scratch in case userspace is using it */
++	CVMX_SYNCIOBDMA;
++	old_scratch = cvmx_scratch_read64(CVMX_SCR_SCRATCH);
+ 
+ 	/* Only allow work for our group (and preserve priorities) */
+ 	if (OCTEON_IS_MODEL(OCTEON_CN68XX)) {
+@@ -220,10 +218,8 @@ static int cvm_oct_poll(struct oct_rx_group *rx_group, int budget)
+ 			       BIT(rx_group->group));
+ 	}
+ 
+-	if (USE_ASYNC_IOBDMA) {
+-		cvmx_pow_work_request_async(CVMX_SCR_SCRATCH, CVMX_POW_NO_WAIT);
+-		did_work_request = 1;
+-	}
++	cvmx_pow_work_request_async(CVMX_SCR_SCRATCH, CVMX_POW_NO_WAIT);
++	did_work_request = 1;
+ 
+ 	while (rx_count < budget) {
+ 		struct sk_buff *skb = NULL;
+@@ -232,7 +228,7 @@ static int cvm_oct_poll(struct oct_rx_group *rx_group, int budget)
+ 		cvmx_wqe_t *work;
+ 		int port;
+ 
+-		if (USE_ASYNC_IOBDMA && did_work_request)
++		if (did_work_request)
+ 			work = cvmx_pow_work_response_async(CVMX_SCR_SCRATCH);
+ 		else
+ 			work = cvmx_pow_work_request_sync(CVMX_POW_NO_WAIT);
+@@ -260,7 +256,7 @@ static int cvm_oct_poll(struct oct_rx_group *rx_group, int budget)
+ 			sizeof(void *));
+ 		prefetch(pskb);
+ 
+-		if (USE_ASYNC_IOBDMA && rx_count < (budget - 1)) {
++		if (rx_count < (budget - 1)) {
+ 			cvmx_pow_work_request_async_nocheck(CVMX_SCR_SCRATCH,
+ 							    CVMX_POW_NO_WAIT);
+ 			did_work_request = 1;
+@@ -403,10 +399,9 @@ static int cvm_oct_poll(struct oct_rx_group *rx_group, int budget)
+ 		cvmx_write_csr(CVMX_POW_PP_GRP_MSKX(coreid), old_group_mask);
+ 	}
+ 
+-	if (USE_ASYNC_IOBDMA) {
+-		/* Restore the scratch area */
+-		cvmx_scratch_write64(CVMX_SCR_SCRATCH, old_scratch);
+-	}
++	/* Restore the scratch area */
++	cvmx_scratch_write64(CVMX_SCR_SCRATCH, old_scratch);
++
+ 	cvm_oct_rx_refill_pool(0);
+ 
+ 	return rx_count;
+diff --git a/drivers/staging/octeon/ethernet-tx.c b/drivers/staging/octeon/ethernet-tx.c
+index 31f35025d19e..2eede0907924 100644
+--- a/drivers/staging/octeon/ethernet-tx.c
++++ b/drivers/staging/octeon/ethernet-tx.c
+@@ -179,23 +179,18 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
+ 		qos = 0;
+ 	}
+ 
+-	if (USE_ASYNC_IOBDMA) {
+-		/* Save scratch in case userspace is using it */
+-		CVMX_SYNCIOBDMA;
+-		old_scratch = cvmx_scratch_read64(CVMX_SCR_SCRATCH);
+-		old_scratch2 = cvmx_scratch_read64(CVMX_SCR_SCRATCH + 8);
+-
+-		/*
+-		 * Fetch and increment the number of packets to be
+-		 * freed.
+-		 */
+-		cvmx_fau_async_fetch_and_add32(CVMX_SCR_SCRATCH + 8,
+-					       FAU_NUM_PACKET_BUFFERS_TO_FREE,
+-					       0);
+-		cvmx_fau_async_fetch_and_add32(CVMX_SCR_SCRATCH,
+-					       priv->fau + qos * 4,
+-					       MAX_SKB_TO_FREE);
+-	}
++	/* Save scratch in case userspace is using it */
++	CVMX_SYNCIOBDMA;
++	old_scratch = cvmx_scratch_read64(CVMX_SCR_SCRATCH);
++	old_scratch2 = cvmx_scratch_read64(CVMX_SCR_SCRATCH + 8);
++
++	/* Fetch and increment the number of packets to be freed. */
++	cvmx_fau_async_fetch_and_add32(CVMX_SCR_SCRATCH + 8,
++				       FAU_NUM_PACKET_BUFFERS_TO_FREE,
++				       0);
++	cvmx_fau_async_fetch_and_add32(CVMX_SCR_SCRATCH,
++				       priv->fau + qos * 4,
++				       MAX_SKB_TO_FREE);
+ 
+ 	/*
+ 	 * We have space for 6 segment pointers, If there will be more
+@@ -204,22 +199,11 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
+ 	if (unlikely(skb_shinfo(skb)->nr_frags > 5)) {
+ 		if (unlikely(__skb_linearize(skb))) {
+ 			queue_type = QUEUE_DROP;
+-			if (USE_ASYNC_IOBDMA) {
+-				/*
+-				 * Get the number of skbuffs in use
+-				 * by the hardware
+-				 */
+-				CVMX_SYNCIOBDMA;
+-				skb_to_free =
+-					cvmx_scratch_read64(CVMX_SCR_SCRATCH);
+-			} else {
+-				/*
+-				 * Get the number of skbuffs in use
+-				 * by the hardware
+-				 */
+-				skb_to_free = cvmx_fau_fetch_and_add32(
+-					priv->fau + qos * 4, MAX_SKB_TO_FREE);
+-			}
++			/* Get the number of skbuffs in use by the
++			 * hardware
++			 */
++			CVMX_SYNCIOBDMA;
++			skb_to_free = cvmx_scratch_read64(CVMX_SCR_SCRATCH);
+ 			skb_to_free = cvm_oct_adjust_skb_to_free(skb_to_free,
+ 								 priv->fau +
+ 								 qos * 4);
+@@ -387,18 +371,10 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
+ 		pko_command.s.ipoffp1 = skb_network_offset(skb) + 1;
+ 	}
+ 
+-	if (USE_ASYNC_IOBDMA) {
+-		/* Get the number of skbuffs in use by the hardware */
+-		CVMX_SYNCIOBDMA;
+-		skb_to_free = cvmx_scratch_read64(CVMX_SCR_SCRATCH);
+-		buffers_to_free = cvmx_scratch_read64(CVMX_SCR_SCRATCH + 8);
+-	} else {
+-		/* Get the number of skbuffs in use by the hardware */
+-		skb_to_free = cvmx_fau_fetch_and_add32(priv->fau + qos * 4,
+-						       MAX_SKB_TO_FREE);
+-		buffers_to_free =
+-		    cvmx_fau_fetch_and_add32(FAU_NUM_PACKET_BUFFERS_TO_FREE, 0);
+-	}
++	/* Get the number of skbuffs in use by the hardware */
++	CVMX_SYNCIOBDMA;
++	skb_to_free = cvmx_scratch_read64(CVMX_SCR_SCRATCH);
++	buffers_to_free = cvmx_scratch_read64(CVMX_SCR_SCRATCH + 8);
+ 
+ 	skb_to_free = cvm_oct_adjust_skb_to_free(skb_to_free,
+ 						 priv->fau + qos * 4);
+@@ -416,9 +392,7 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
+ 	} else {
+ 		queue_type = QUEUE_HW;
+ 	}
+-	if (USE_ASYNC_IOBDMA)
+-		cvmx_fau_async_fetch_and_add32(
+-				CVMX_SCR_SCRATCH, FAU_TOTAL_TX_TO_CLEAN, 1);
++	cvmx_fau_async_fetch_and_add32(CVMX_SCR_SCRATCH, FAU_TOTAL_TX_TO_CLEAN, 1);
+ 
+ 	spin_lock_irqsave(&priv->tx_free_list[qos].lock, flags);
+ 
+@@ -488,16 +462,11 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
+ 		dev_kfree_skb_any(t);
+ 	}
+ 
+-	if (USE_ASYNC_IOBDMA) {
+-		CVMX_SYNCIOBDMA;
+-		total_to_clean = cvmx_scratch_read64(CVMX_SCR_SCRATCH);
+-		/* Restore the scratch area */
+-		cvmx_scratch_write64(CVMX_SCR_SCRATCH, old_scratch);
+-		cvmx_scratch_write64(CVMX_SCR_SCRATCH + 8, old_scratch2);
+-	} else {
+-		total_to_clean = cvmx_fau_fetch_and_add32(
+-						FAU_TOTAL_TX_TO_CLEAN, 1);
+-	}
++	CVMX_SYNCIOBDMA;
++	total_to_clean = cvmx_scratch_read64(CVMX_SCR_SCRATCH);
++	/* Restore the scratch area */
++	cvmx_scratch_write64(CVMX_SCR_SCRATCH, old_scratch);
++	cvmx_scratch_write64(CVMX_SCR_SCRATCH + 8, old_scratch2);
+ 
+ 	if (total_to_clean & 0x3ff) {
+ 		/*
+
+From patchwork Wed Dec 13 00:48:48 2017
+Content-Type: text/plain; charset="utf-8"
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7bit
+X-Patchwork-Submitter: David Daney <david.daney@cavium.com>
+X-Patchwork-Id: 862303
+Return-Path: <linux-kernel-owner@vger.kernel.org>
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+        id S1753218AbdLMAts (ORCPT <rfc822;w@1wt.eu>);
+        Tue, 12 Dec 2017 19:49:48 -0500
+Received: from mail-cys01nam02on0076.outbound.protection.outlook.com
+ ([104.47.37.76]:39646
+        "EHLO NAM02-CY1-obe.outbound.protection.outlook.com"
+        rhost-flags-OK-OK-OK-FAIL) by vger.kernel.org with ESMTP
+        id S1752869AbdLMAtQ (ORCPT <rfc822;linux-kernel@vger.kernel.org>);
+        Tue, 12 Dec 2017 19:49:16 -0500
+Authentication-Results: spf=none (sender IP is )
+ smtp.mailfrom=David.Daney@cavium.com;
+From: David Daney <david.daney@cavium.com>
+To: linux-mips@linux-mips.org, ralf@linux-mips.org,
+        James Hogan <james.hogan@mips.com>
+Cc: linux-kernel@vger.kernel.org,
+        "Steven J. Hill" <steven.hill@cavium.com>, netdev@vger.kernel.org,
+        "David S. Miller" <davem@davemloft.net>,
+        Carlos Munoz <cmunoz@cavium.com>,
+        "Steven J . Hill" <Steven.Hill@cavium.com>,
+        David Daney <david.daney@cavium.com>
+Subject: [PATCH v7 4/4] MIPS: Octeon: Add a global resource manager.
+Date: Tue, 12 Dec 2017 16:48:48 -0800
+Message-Id: <20171213004848.15086-5-david.daney@cavium.com>
+X-Mailer: git-send-email 2.14.3
+In-Reply-To: <20171213004848.15086-1-david.daney@cavium.com>
+References: <20171213004848.15086-1-david.daney@cavium.com>
+MIME-Version: 1.0
+X-Originating-IP: [50.233.148.156]
+X-ClientProxiedBy: DM5PR07CA0037.namprd07.prod.outlook.com (10.168.109.23) To
+ CY4PR07MB3495.namprd07.prod.outlook.com (10.171.252.152)
+X-MS-PublicTrafficType: Email
+X-MS-Office365-Filtering-Correlation-Id: a4bc92d3-f558-40df-d577-08d541c35418
+X-Microsoft-Antispam: 
+ UriScan:;BCL:0;PCL:0;RULEID:(4534020)(4602075)(4627115)(201703031133081)(201702281549075)(5600026)(4604075)(2017052603307);SRVR:CY4PR07MB3495;
+X-Microsoft-Exchange-Diagnostics: 
+ 1;CY4PR07MB3495;3:TS5cjHU7oz3It+bByYJoJXvpiTmGV9nGkIcWldvVHvzMU0InwcxMd6FqBVOgHiRExGaT3Zlmvi6ibW2ViC71vqk5wwhjkmepHDdkLj0a1yXP+J5HGGnn12rYh6qlVvArf4IjjCuvxwVGUz18u/vbTfLW+jjvmBN3giN0ScLT05IpqBr21RWUqBtPL6T+K+Jyi2WVZczSx9IU7EX3Ehc9KIU7OblvbMAQ+w1IdQpy03gK3Kwi8qngmcopyt2zjiE4;25:+enXZZjuj9S2cfnhtgw+I8woNGRs9DpYuKYMxWOgcaIoVYHKVQbcArf+u/D0MDA83snyJWV6cv+RXE6sSVONkW+E8eOcl9ap2nN+As9Nde9JapHVpinXB8dHa4JbasXnSPuNodKUM3VxfSHTRoTmdFeRsVbXnnGJv0h8X2xjyERtFASGbqYNNcJz3Qoh1Kl4NcxuvOzbKamzEmCO0fg2OIJ7RS2kO61ZLoQvRn5oL3z3pKfzyyVYHfYKoghZBJGX36Un4ta2xFQyOpyDD9dQoRgtg5bqhEaLMkH1XkFwFvntYeyT0E+h61ats5gOI2MCXq7I1sdTb3MLAFuvmKeb2/0dvXn/Cp7og+n2Kjv3/Fg=;31:6NDYneT6b7X/VsR4J2pCmD3KHF8sGHpvOZkipiibVD1M39Nio7/YMxjuDg2aEc9N9R+sHQe2F57bQVVkueIdlmzn5ioZ70x/D6eaosem2FUI4b6/kSWOJ1Y6ltKNCZMwkTUQeoV/HiaOhGJfmKlpmNh5Y/LQT4m1Ys558vDYpus8vgOJgWegjrn9KiC768LnJPmQgM4I2DwgwiPDXR5dTFjWWtmy3bUpX8q9ilEoit4=
+X-MS-TrafficTypeDiagnostic: CY4PR07MB3495:
+X-Microsoft-Exchange-Diagnostics: 
+ 1;CY4PR07MB3495;20:YyWxp638CD8gAOVPWggv5FXiIXCss0QZ9kS18SX7mABhULVTcvBHmrUTABYZgPJoKb60IJZ+HbAJw4ES0RqQAXAbUFT662i6rLDf21JYDqeEtJV2tfqevvs1zeRbQZHu7MHTZHkYZJMNIqktq50AOHbLqaLquVp+Mr1ucHbSBPedR1C46/JPcjnlBH4Uo0kNluzkDLWkdUVIl4KFhDURTAGNZCpgLQoSvpK5ktOyw8Kt3EZFAlFzSyilUbXmNDnwXy/odPpWOp+4W1DOXCzSaUe34ynO6lrqgQqXewJxCQHXox+c6d5b8GLjN++H3A1x/29pwqdnuJFzpTar83eB8YV0o41O9XeOUsQDIlyOZ2LIG4KOLGE5qB0QgslukCAAzeHRZYxwNjjeE+UhSxVDfJPUkJER5TfKl4Uz6IHm3CIgcO8nxSxrayV7Id2tmlckG9acYuP/HrbuMBzq3p9PSDxyPBwt9qjDguCK9ebJ+U0PdC6N5G1hTImU4hj0f17a;4:ecfx4OAOvZWIqkJz1R7Wm+4YjtIfUCHKBdNZ/qYwat1dboX/QsfXhUDgg8ZAwi+NDcZ9cXrg6xfbu0kYvwhoiVNvx/2Tx6/TcVw9tieTUFHf0kdUgrc/Bf7PhMmW9z/zQPPFf3w/GUgtp/oyJoVH7Ma07NvuYNDO1cQyiDO2fEYsrqYQ1LE1+0PBe96yBHONYwqKl9xCwYf/cCBt6vRhNbwzMsLFKmEhy9nkNEbL07hlcOEOT2Htm7KSLnXCYLXIp52+AlnkNZN2qwIwjzBrfA==
+X-Microsoft-Antispam-PRVS: 
+ <CY4PR07MB3495CFB790CC07F09DEA857497350@CY4PR07MB3495.namprd07.prod.outlook.com>
+X-Exchange-Antispam-Report-Test: UriScan:;
+X-Exchange-Antispam-Report-CFA-Test: 
+ BCL:0;PCL:0;RULEID:(6040450)(2401047)(8121501046)(5005006)(3002001)(3231023)(93006095)(93001095)(10201501046)(6041248)(20161123560025)(20161123555025)(20161123564025)(20161123562025)(20161123558100)(201703131423075)(201702281528075)(201703061421075)(201703061406153)(6072148)(201708071742011);SRVR:CY4PR07MB3495;BCL:0;PCL:0;RULEID:(100000803101)(100110400095);SRVR:CY4PR07MB3495;
+X-Forefront-PRVS: 052017CAF1
+X-Forefront-Antispam-Report: 
+ SFV:NSPM;SFS:(10009020)(376002)(366004)(346002)(199004)(189003)(106356001)(52116002)(105586002)(53416004)(16526018)(6512007)(16586007)(107886003)(1076002)(4326008)(53936002)(47776003)(25786009)(6506007)(386003)(54906003)(3846002)(2906002)(6486002)(316002)(66066001)(6116002)(59450400001)(69596002)(68736007)(81166006)(5660300001)(6666003)(72206003)(2950100002)(50226002)(36756003)(305945005)(7736002)(8936002)(6916009)(51416003)(81156014)(8676002)(97736004)(76176011)(86362001)(575784001)(48376002)(478600001)(50466002);DIR:OUT;SFP:1101;SCL:1;SRVR:CY4PR07MB3495;H:ddl.caveonetworks.com;FPR:;SPF:None;PTR:InfoNoRecords;A:1;MX:1;LANG:en;
+X-Microsoft-Exchange-Diagnostics: 
+ 1;CY4PR07MB3495;23:1GylmxRC5TpgwiDGi6gCa56WzrEgoqRVG/YK61qUE12nY+KFeFoDaxhn3MB0B6Lt7WcFmU+n8nRTqLYUwD9YZm2d+7qspQ0uhKblzmKkn/d88PiUq1rRGF5szJFMOWrv9y1zNfWpdA1mMryxCBYEZlcDob/8qigMLRO3hET+slDIlPTeWXjvz6xs6uHXGLhM/+0Ui3FCr07LEyzB8mEmyo/jCjNo39schWYccBuMc1fBzxu+qK5n3yqRSi//zf3xoQ4rxyugn8733jLocm9Wvrs/Wd+1FueQmsnfrX2LpOytdB9vbb/hbAYM07G0TmUbZJvpMGadbozxigAbKMVBxm/tgQ9yRwXlnGkbnY6/UyWhJoZSiAsc43QYBr60++wE3kjpPm2o5hgJrf0XH3WyjLYJ9xA21p3uY3A/6p123wdl0blHWqv+zx3CikOZKR+LFdemAu1UDW7uuu1tqzH+SNLxN9r7967KrTBM8c1CEttrEh9sNWq19dvCWtKQCOP/f19XJtpv0zXmN7YxxnvxPprzFzyFE5nzCD2dyenyfIJhQ721dAwnUwFVBA5Tcxntf/KnN2/kdMqMvpiOju3+X95rG/i1+l9/l+6uKl7P2DQnZFyb2H3hQBIByr0J0CtTNaSiSKO+MJtKxYYVS5CUC9cN6+Uv3CuyN47FSCFsLA6+CxJpCosYJx+Hl6SbkdAId9QB3NQhDx9tGE6pt6w49fETonHgYwrOn7zTzbyNOWsaAtQpkxQmjncFQt2rNZiTkHA2YgYr/2j1jY9H2KXxCb9OYajwq2mUyJtRUdqvfMcY+wAVRbF2npi8bIw31EO+At6eTjsltsybSoC81sFsJeIoy1+SPEaWVe44+GkLVGqQrcjkn39nEI44qBZ5qEg9IUktFQOICSom7j+SyUxRQGSiHeKmCjXszNkVE7mH4D/Z0/ouJiHU2ocG871R9Hzkxms9UdqUmK5lD766C2TmwLU3DVHMJWQTLN+n3K+FeCD/z2ljreSuq624AAMMewIFCJJwmFLqXoLvwfItPQNNnGsmfDlC/tnTwB7SGAmDV5lPPLuNBcPYLSlutqWzHaxgB46blPGVzFx9VsnWUmRU7kUAbGNG0f88cQAacbK37CnpVVFDSkHtN1eJDPRBbBt7nBJoRw0N5PMELIvKQdS4S0fgNrf9qhu9sUEMQ+/c4cA=
+X-Microsoft-Exchange-Diagnostics: 
+ 1;CY4PR07MB3495;6:vbMUKJ+GgIhsbIn7gH3SK24D1lVDXB7D+ppJs9Xl+87lSsSXn+0YBKFn6KM0ybSBVhGfSy7XhvZ64Thb8sJvUGJ4RQsP3z5mpZf7bUtH18gwzuU/63v/XJvOYztBsst7d+KXaDwak8sH3Od1ZsLkOjEC4C2ZZsK+cAOr4hceZTjSclTjiUOSgzfQtuAcNwxhNEDVthwJGgdBQ4CmlU3QoLBPmLQ34kMG3SNiGDwZoTXR+C0U+M5qVNuW1uEEr9HcnDjGL2N3ARTxhOMnSg+xpfrSSDuq6YVe+LMjGWowm3Lo+vLEv1Tc8lj47f8Zb+RzMIW6IKlnBV1pdSk3THWLhn3gljpuJ2DSDnerY2DE4s8=;5:enbfFAOQXvK2S5mpJdiposRMLekvIlICQlriCV4xWur68/kBYKKmfkNxANQIZaM0sMuAPWSlJJuTLuXbeDXtk6ZaRIjNXOrp1n5YGwJbFQfxCR0KRix4iBgmmucqdgpGSGcgJcpBHp58GlpE11nIVW0NyGmeE6h0JGn77zy7XM0=;24:vScJv8moCL3Qo7e8eAB6U4W0H7snJ9gb7RBmUt6Varr5Zq0GJAe3iGUFa/lk/vkVGDJjwo84x/p2bIlmDLPlIj9V4fkaU6oj6E3BxicDnCk=;7:sgLFr9U0GMyFJvguXUkwnJ0+dAOxiX2dj07LBLT+tdwwhE+5rVoxylVm23ci0l45JB0R3zaU5l8lZuWZ42FefA4Aa5PBVj3Q+w8PbMFdh+/hBimZNpVACbg9yUQSPCDK54I5htAoeZyLpVzR9Gjo1frJiJeGpoE1gZvsLJpGQBXo7IhccvMJdrHXq+VVUALSwdyzNpME7AK6BpLkG+aGyGdrZntGSj4wbnlZE7tpVmLDfrt8MbI828cDzZlddaRI
+SpamDiagnosticOutput: 1:99
+SpamDiagnosticMetadata: NSPM
+X-OriginatorOrg: cavium.com
+X-MS-Exchange-CrossTenant-OriginalArrivalTime: 13 Dec 2017 00:49:07.0322 (UTC)
+X-MS-Exchange-CrossTenant-Network-Message-Id: 
+ a4bc92d3-f558-40df-d577-08d541c35418
+X-MS-Exchange-CrossTenant-FromEntityHeader: Hosted
+X-MS-Exchange-CrossTenant-Id: 711e4ccf-2e9b-4bcf-a551-4094005b6194
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: CY4PR07MB3495
+Sender: linux-kernel-owner@vger.kernel.org
+List-ID: <linux-kernel.vger.kernel.org>
+X-Mailing-List: linux-kernel@vger.kernel.org
+Content-Length: 11043
+Lines: 416
+
+From: Carlos Munoz <cmunoz@cavium.com>
+
+Add a global resource manager to manage tagged pointers within
+bootmem allocated memory. This is used by various functional
+blocks in the Octeon core like the FPA, Ethernet nexus, etc.
+
+Signed-off-by: Carlos Munoz <cmunoz@cavium.com>
+Signed-off-by: Steven J. Hill <Steven.Hill@cavium.com>
+Signed-off-by: David Daney <david.daney@cavium.com>
+---
+ arch/mips/cavium-octeon/Makefile       |   1 +
+ arch/mips/cavium-octeon/resource-mgr.c | 351 +++++++++++++++++++++++++++++++++
+ arch/mips/include/asm/octeon/octeon.h  |  18 ++
+ 3 files changed, 370 insertions(+)
+ create mode 100644 arch/mips/cavium-octeon/resource-mgr.c
+
+diff --git a/arch/mips/cavium-octeon/Makefile b/arch/mips/cavium-octeon/Makefile
+index 7c02e542959a..28c0bb75d1a4 100644
+--- a/arch/mips/cavium-octeon/Makefile
++++ b/arch/mips/cavium-octeon/Makefile
+@@ -10,6 +10,7 @@
+ #
+ 
+ obj-y := cpu.o setup.o octeon-platform.o octeon-irq.o csrc-octeon.o
++obj-y += resource-mgr.o
+ obj-y += dma-octeon.o
+ obj-y += octeon-memcpy.o
+ obj-y += executive/
+diff --git a/arch/mips/cavium-octeon/resource-mgr.c b/arch/mips/cavium-octeon/resource-mgr.c
+new file mode 100644
+index 000000000000..74efda5420ff
+--- /dev/null
++++ b/arch/mips/cavium-octeon/resource-mgr.c
+@@ -0,0 +1,351 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * Resource manager for Octeon.
++ *
++ * Copyright (C) 2017 Cavium, Inc.
++ */
++#include <linux/module.h>
++
++#include <asm/octeon/octeon.h>
++#include <asm/octeon/cvmx-bootmem.h>
++
++#define RESOURCE_MGR_BLOCK_NAME		"cvmx-global-resources"
++#define MAX_RESOURCES			128
++#define INST_AVAILABLE			-88
++#define OWNER				0xbadc0de
++
++struct global_resource_entry {
++	struct global_resource_tag tag;
++	u64 phys_addr;
++	u64 size;
++};
++
++struct global_resources {
++#ifdef __LITTLE_ENDIAN_BITFIELD
++	u32 rlock;
++	u32 pad;
++#else
++	u32 pad;
++	u32 rlock;
++#endif
++	u64 entry_cnt;
++	struct global_resource_entry resource_entry[];
++};
++
++static struct global_resources *res_mgr_info;
++
++
++/*
++ * The resource manager interacts with software running outside of the
++ * Linux kernel, which necessitates locking to maintain data structure
++ * consistency.  These custom locking functions implement the locking
++ * protocol, and cannot be replaced by kernel locking functions that
++ * may use different in-memory structures.
++ */
++
++static void res_mgr_lock(void)
++{
++	while (cmpxchg(&res_mgr_info->rlock, 0, 1))
++		; /* Loop while not zero */
++	rmb();
++}
++
++static void res_mgr_unlock(void)
++{
++	/* Wait until all resource operations finish before unlocking. */
++	wmb();
++	WRITE_ONCE(res_mgr_info->rlock, 0);
++	/* Force a write buffer flush. */
++	wmb();
++}
++
++static int res_mgr_find_resource(struct global_resource_tag tag)
++{
++	struct global_resource_entry *res_entry;
++	int i;
++
++	for (i = 0; i < res_mgr_info->entry_cnt; i++) {
++		res_entry = &res_mgr_info->resource_entry[i];
++		if (res_entry->tag.lo == tag.lo && res_entry->tag.hi == tag.hi)
++			return i;
++	}
++	return -1;
++}
++
++/**
++ * res_mgr_create_resource() - Create a resource.
++ * @tag: Identifies the resource.
++ * @inst_cnt: Number of resource instances to create.
++ *
++ * Returns 0 if the source was created successfully.
++ * Returns < 0 for error codes.
++ */
++int res_mgr_create_resource(struct global_resource_tag tag, int inst_cnt)
++{
++	struct global_resource_entry *res_entry;
++	u64 size;
++	u64 *res_addr;
++	int res_index, i, rc = 0;
++
++	res_mgr_lock();
++
++	/* Make sure resource doesn't already exist. */
++	res_index = res_mgr_find_resource(tag);
++	if (res_index >= 0) {
++		rc = -EEXIST;
++		goto err;
++	}
++
++	if (res_mgr_info->entry_cnt >= MAX_RESOURCES) {
++		pr_err("Resource max limit reached, not created\n");
++		rc = -ENOSPC;
++		goto err;
++	}
++
++	/*
++	 * Each instance is kept in an array of u64s. The first array element
++	 * holds the number of allocated instances.
++	 */
++	size = sizeof(u64) * (inst_cnt + 1);
++	res_addr = cvmx_bootmem_alloc_range(size, CVMX_CACHE_LINE_SIZE, 0, 0);
++	if (!res_addr) {
++		pr_err("Failed to allocate resource. not created\n");
++		rc = -ENOMEM;
++		goto err;
++	}
++
++	/* Initialize the newly created resource. */
++	*res_addr = inst_cnt;
++	for (i = 1; i <= inst_cnt; i++)
++		res_addr[i] = INST_AVAILABLE;
++
++	res_index = res_mgr_info->entry_cnt;
++	res_entry = &res_mgr_info->resource_entry[res_index];
++	res_entry->tag = tag;
++	res_entry->phys_addr = virt_to_phys(res_addr);
++	res_entry->size = size;
++	res_mgr_info->entry_cnt++;
++
++err:
++	res_mgr_unlock();
++
++	return rc;
++}
++EXPORT_SYMBOL(res_mgr_create_resource);
++
++/**
++ * res_mgr_alloc_range() - Allocate a range of resource instances.
++ * @tag: Identifies the resource.
++ * @req_inst: Requested start of instance range to allocate.
++ *	      Range instances are guaranteed to be sequential
++ *	      (-1 for don't care).
++ * @req_cnt: Number of instances to allocate.
++ * @use_last_avail: Set to request the last available instance.
++ * @inst: Updated with the allocated instances.
++ *
++ * Returns 0 if the source was created successfully.
++ * Returns < 0 for error codes.
++ */
++int res_mgr_alloc_range(struct global_resource_tag tag, int req_inst,
++			int req_cnt, bool use_last_avail, int *inst)
++{
++	struct global_resource_entry *res_entry;
++	int res_index;
++	u64 *res_addr;
++	u64 inst_cnt;
++	int alloc_cnt, i, rc = -ENOENT;
++
++	/* Start with no instances allocated. */
++	for (i = 0; i < req_cnt; i++)
++		inst[i] = INST_AVAILABLE;
++
++	res_mgr_lock();
++
++	/* Find the resource. */
++	res_index = res_mgr_find_resource(tag);
++	if (res_index < 0) {
++		pr_err("Resource not found, can't allocate instance\n");
++		goto err;
++	}
++
++	/* Get resource data. */
++	res_entry = &res_mgr_info->resource_entry[res_index];
++	res_addr = phys_to_virt(res_entry->phys_addr);
++	inst_cnt = *res_addr;
++
++	/* Allocate the requested instances. */
++	if (req_inst >= 0) {
++		/* Specific instance range requested. */
++		if (req_inst + req_cnt >= inst_cnt) {
++			pr_err("Requested instance out of range\n");
++			goto err;
++		}
++
++		for (i = 0; i < req_cnt; i++) {
++			if (*(res_addr + req_inst + 1 + i) == INST_AVAILABLE) {
++				inst[i] = req_inst + i;
++			} else {
++				inst[0] = INST_AVAILABLE;
++				break;
++			}
++		}
++	} else if (use_last_avail) {
++		/* Last available instance requested. */
++		alloc_cnt = 0;
++		for (i = inst_cnt; i > 0; i--) {
++			if (*(res_addr + i) == INST_AVAILABLE) {
++				/*
++				 * Instance off by 1 (first element holds the
++				 * count).
++				 */
++				inst[alloc_cnt] = i - 1;
++
++				alloc_cnt++;
++				if (alloc_cnt == req_cnt)
++					break;
++			}
++		}
++
++		if (i == 0)
++			inst[0] = INST_AVAILABLE;
++	} else {
++		/* Next available instance requested. */
++		alloc_cnt = 0;
++		for (i = 1; i <= inst_cnt; i++) {
++			if (*(res_addr + i) == INST_AVAILABLE) {
++				/*
++				 * Instance off by 1 (first element holds the
++				 * count).
++				 */
++				inst[alloc_cnt] = i - 1;
++
++				alloc_cnt++;
++				if (alloc_cnt == req_cnt)
++					break;
++			}
++		}
++
++		if (i > inst_cnt)
++			inst[0] = INST_AVAILABLE;
++	}
++
++	if (inst[0] != INST_AVAILABLE) {
++		for (i = 0; i < req_cnt; i++)
++			*(res_addr + inst[i] + 1) = OWNER;
++		rc = 0;
++	}
++
++err:
++	res_mgr_unlock();
++
++	return rc;
++}
++EXPORT_SYMBOL(res_mgr_alloc_range);
++
++/**
++ * res_mgr_alloc() - Allocate a resource instance.
++ * @tag: Identifies the resource.
++ * @req_inst: Requested instance to allocate (-1 for don't care).
++ * @use_last_avail: Set to request the last available instance.
++ *
++ * Returns: Allocated resource instance if successful.
++ * Returns <0 for error codes.
++ */
++int res_mgr_alloc(struct global_resource_tag tag, int req_inst,
++		  bool use_last_avail)
++{
++	int inst, rc;
++
++	rc = res_mgr_alloc_range(tag, req_inst, 1, use_last_avail, &inst);
++	if (!rc)
++		return inst;
++	return rc;
++}
++EXPORT_SYMBOL(res_mgr_alloc);
++
++/**
++ * res_mgr_free_range() - Free a resource instance range.
++ * @tag: Identifies the resource.
++ * @inst: Requested instance to free.
++ * @req_cnt: Number of instances to free.
++ */
++void res_mgr_free_range(struct global_resource_tag tag, const int *inst,
++			int req_cnt)
++{
++	struct global_resource_entry *res_entry;
++	int res_index, i;
++	u64 *res_addr;
++
++	res_mgr_lock();
++
++	/* Find the resource. */
++	res_index = res_mgr_find_resource(tag);
++	if (res_index < 0) {
++		pr_err("Resource not found, can't free instance\n");
++		goto err;
++	}
++
++	/* Get the resource data. */
++	res_entry = &res_mgr_info->resource_entry[res_index];
++	res_addr = phys_to_virt(res_entry->phys_addr);
++
++	/* Free the resource instances. */
++	for (i = 0; i < req_cnt; i++) {
++		/* Instance off by 1 (first element holds the count). */
++		*(res_addr + inst[i] + 1) = INST_AVAILABLE;
++	}
++
++err:
++	res_mgr_unlock();
++}
++EXPORT_SYMBOL(res_mgr_free_range);
++
++/**
++ * res_mgr_free() - Free a resource instance.
++ * @tag: Identifies the resource.
++ * @req_inst: Requested instance to free.
++ */
++void res_mgr_free(struct global_resource_tag tag, int inst)
++{
++	res_mgr_free_range(tag, &inst, 1);
++}
++EXPORT_SYMBOL(res_mgr_free);
++
++static int __init res_mgr_init(void)
++{
++	struct cvmx_bootmem_named_block_desc *block;
++	int block_size;
++	u64 addr;
++
++	cvmx_bootmem_lock();
++
++	/* Search for the resource manager data in boot memory. */
++	block = cvmx_bootmem_phy_named_block_find(RESOURCE_MGR_BLOCK_NAME,
++						  CVMX_BOOTMEM_FLAG_NO_LOCKING);
++	if (block) {
++		/* Found. */
++		res_mgr_info = phys_to_virt(block->base_addr);
++	} else {
++		/* Create it. */
++		block_size = sizeof(struct global_resources) +
++			sizeof(struct global_resource_entry) * MAX_RESOURCES;
++		addr = cvmx_bootmem_phy_named_block_alloc(block_size, 0, 0,
++				CVMX_CACHE_LINE_SIZE, RESOURCE_MGR_BLOCK_NAME,
++				CVMX_BOOTMEM_FLAG_NO_LOCKING);
++		if (!addr) {
++			pr_err("Failed to allocate name block %s\n",
++			       RESOURCE_MGR_BLOCK_NAME);
++		} else {
++			res_mgr_info = phys_to_virt(addr);
++			memset(res_mgr_info, 0, block_size);
++		}
++	}
++
++	cvmx_bootmem_unlock();
++
++	return 0;
++}
++device_initcall(res_mgr_init);
++
++MODULE_LICENSE("GPL");
++MODULE_DESCRIPTION("Cavium, Inc. Octeon resource manager");
+diff --git a/arch/mips/include/asm/octeon/octeon.h b/arch/mips/include/asm/octeon/octeon.h
+index f01af2469874..4dafeaf262b5 100644
+--- a/arch/mips/include/asm/octeon/octeon.h
++++ b/arch/mips/include/asm/octeon/octeon.h
+@@ -346,6 +346,24 @@ void octeon_mult_restore3_end(void);
+ void octeon_mult_restore2(void);
+ void octeon_mult_restore2_end(void);
+ 
++/*
++ * This definition must be kept in sync with the one in
++ * cvmx-global-resources.c
++ */
++struct global_resource_tag {
++	uint64_t lo;
++	uint64_t hi;
++};
++
++void res_mgr_free(struct global_resource_tag tag, int inst);
++void res_mgr_free_range(struct global_resource_tag tag, const int *inst,
++			int req_cnt);
++int res_mgr_alloc(struct global_resource_tag tag, int req_inst,
++		  bool use_last_avail);
++int res_mgr_alloc_range(struct global_resource_tag tag, int req_inst,
++			int req_cnt, bool use_last_avail, int *inst);
++int res_mgr_create_resource(struct global_resource_tag tag, int inst_cnt);
++
+ /**
+  * Read a 32bit value from the Octeon NPI register space
+  *

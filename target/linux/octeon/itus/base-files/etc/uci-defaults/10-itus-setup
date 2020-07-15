@@ -1,0 +1,6 @@
+#!/bin/sh
+# Set Time
+uci set system.@system[0].zonename='America/New York'
+uci set system.@system[0].timezone='EST5EDT,M3.2.0,M11.1.0'
+uci set system.@system[0].hostname='Shield'
+uci commit system

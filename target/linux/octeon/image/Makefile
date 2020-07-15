@@ -12,6 +12,15 @@ define Build/strip-kernel
 	$(TARGET_CROSS)strip -R .notes $@ -o $@.stripped && mv $@.stripped $@
 endef
 
+define Build/create-itus-sysupgrade
+	# Itus Shield requires specialized sysupgrade file
+	find $(TOPDIR) -iname openwrt-octeon-* >> $(TOPDIR)/output-$(BOARD_NAME).log
+	ls -la $(BIN_DIR) >> $(TOPDIR)/output-$(BOARD_NAME).log
+#	tar -C $(BIN_DIR) -xvzf $(BIN_DIR)/openwrt-octeon-$(BOARD_NAME)-ext4-sysupgrade.tar
+#	tar -C $(BIN_DIR) -cvzf sysupgrade-$(BOARD_NAME)/kernel openwrt-octeon-rootfs.tar.gz sysupgrade-$(BOARD_NAME).tar.gz
+#	rm -rf $(BIN_DIR)/sysupgrade-$(BOARD_NAME)
+endef
+
 define Device/Default
   PROFILES = Default $$(DEVICE_NAME)
   KERNEL_NAME := vmlinux.elf
@@ -22,29 +31,6 @@ define Device/Default
   IMAGE/sysupgrade.tar := sysupgrade-tar
 endef
 
-define Device/generic
-  DEVICE_VENDOR := Generic
-  DEVICE_MODEL := Octeon
-  FILESYSTEMS := ext4
-endef
-TARGET_DEVICES += generic
-
-ER_CMDLINE:=-mtdparts=phys_mapped_flash:640k(boot0)ro,640k(boot1)ro,64k(eeprom)ro root=/dev/mmcblk0p2 rootfstype=squashfs,ext4 rootwait
-define Device/ubnt_edgerouter
-  DEVICE_VENDOR := Ubiquiti
-  DEVICE_MODEL := EdgeRouter
-  BOARD_NAME := er
-  CMDLINE := $(ER_CMDLINE)
-endef
-TARGET_DEVICES += ubnt_edgerouter
-
-ERLITE_CMDLINE:=-mtdparts=phys_mapped_flash:512k(boot0)ro,512k(boot1)ro,64k(eeprom)ro root=/dev/sda2 rootfstype=squashfs,ext4 rootwait
-define Device/ubnt_edgerouter-lite
-  DEVICE_VENDOR := Ubiquiti
-  DEVICE_MODEL := EdgeRouter Lite
-  BOARD_NAME := erlite
-  CMDLINE := $(ERLITE_CMDLINE)
-endef
-TARGET_DEVICES += ubnt_edgerouter-lite
+include $(SUBTARGET).mk
 
 $(eval $(call BuildImage))
