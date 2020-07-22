@@ -47,4 +47,15 @@ define Device/ubnt_edgerouter-lite
 endef
 TARGET_DEVICES += ubnt_edgerouter-lite
 
+ITUSROUTER_CMDLINE:=console=ttyS0,115200, root=/dev/mmcblk1p2 rootfstype=squashfs,ext4,f2fs rootwait
+define Device/itus_shield-router
+  DEVICE_VENDOR := Itus Networks
+  DEVICE_MODEL := Shield Router
+  BOARD_NAME := itus_shield-router
+  CMDLINE := $(ITUSROUTER_CMDLINE)
+  IMAGE/sysupgrade.tar/squashfs :+ append-metadata | combined-image
+  CPU_TYPE := octeon3
+endef
+TARGET_DEVICES += itus_shield-router
+
 $(eval $(call BuildImage))
