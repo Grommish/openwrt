@@ -64,12 +64,12 @@ platform_do_flash() {
 		mv /boot/vmlinux.64.md5 /boot/vmlinux.64.md5.previous
 	   }
 
-	   echo "flashing kernel to /dev/$kernel"
+     echo "flashing kernel to /dev/$kernel"
 	   tar xf $tar_file sysupgrade-$board/kernel -O > /boot/vmlinux.64
 	   md5sum /boot/vmlinux.64 | cut -f1 -d " " > /boot/vmlinux.64.md5
 	   umount /boot
 
-	   echo "flashing rootfs to ${rootfs}"
+     echo "flashing rootfs to ${rootfs}"
 	   tar xvf $tar_file sysupgrade-$board/root -O | dd of="${rootfs}" bs=4096
 	fi
 	sync

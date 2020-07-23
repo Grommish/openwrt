@@ -3,9 +3,8 @@ do_sysinfo_octeon() {
 	local name
 
 	machine=$(grep "^system type" /proc/cpuinfo | sed "s/system type.*: \(.*\)/\1/g")
-	smode=$(do_get_shield_mode)
 
-	case "$machine" in
+  case "$machine" in
 	"UBNT_E100"*)
 	      name="erlite"
 	      ;;
@@ -21,7 +20,8 @@ do_sysinfo_octeon() {
 	"ITUS_SHIELD"*)
 	      name="itus_shield-router"
 	      ;;
-	*)
+	
+  *)
 	      name="generic"
 	      ;;
 	esac
