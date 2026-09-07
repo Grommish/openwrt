@@ -204,6 +204,7 @@ platform_do_upgrade() {
 		CI_KERNPART="kernel"
 		nand_do_upgrade "$1"
 		;;
+	ubnt,edgerouter-10x|\
 	ubnt,edgerouter-x|\
 	ubnt,edgerouter-x-sfp)
 		platform_upgrade_ubnt_erx "$1"

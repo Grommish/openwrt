@@ -1,0 +1,556 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+
+#include "mt7621.dtsi"
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/leds/common.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
+/ {
+	compatible = "ubnt,edgerouter-10x", "mediatek,mt7621-soc";
+	model = "Ubiquiti EdgeRouter 10X";
+
+	aliases {
+		led-boot = &led_status_white;
+		led-failsafe = &led_status_blue;
+		led-running = &led_status_white;
+		led-upgrade = &led_status_white;
+	};
+
+	/*
+	 * One two-colour status LED behind the front panel, white and blue in
+	 * a single package, both active low, on GPIOs 13 and 16.
+	 *
+	 * Measured on the board, driving the two pins by hand:
+	 *
+	 *   io13  io16   result
+	 *     1     0    blue
+	 *     0     0    white   (both lit; white swamps the blue)
+	 *     0     1    white
+	 *     1     1    off
+	 *
+	 * so it is two independent active low LEDs rather than one pin
+	 * selecting a colour. Note this only works once the "jtag" pin group
+	 * is claimed as GPIO -- see &state_default below.
+	 *
+	 * U-Boot leaves the LED blue, and diag.sh takes it from there: white
+	 * blinking through preinit, solid white once boot completes, and blue
+	 * kept for failsafe so that state is visually distinct.
+	 */
+	leds {
+		compatible = "gpio-leds";
+
+		led_status_white: led-0 {
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_STATUS;
+			gpios = <&gpio 13 GPIO_ACTIVE_LOW>;
+		};
+
+		led_status_blue: led-1 {
+			color = <LED_COLOR_ID_BLUE>;
+			function = LED_FUNCTION_STATUS;
+			gpios = <&gpio 16 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	keys {
+		compatible = "gpio-keys";
+
+		reset {
+			label = "reset";
+			gpios = <&gpio 12 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_RESTART>;
+		};
+	};
+};
+
+&gmac0 {
+	nvmem-cells = <&macaddr_factory_22 0>;
+	nvmem-cell-names = "mac-address";
+	openwrt,netdev-name = "dsa";
+};
+
+&gmac1 {
+	status = "disabled";
+};
+
+/*
+ * Internal MT7530 switch — 5 user ports. Confirmed from live DTB:
+ * all traffic flows through GMAC0.
+ */
+&switch0 {
+	dsa,member = <0 0>;
+
+	ports {
+		port@0 {
+			status = "okay";
+			openwrt,netdev-name = "eth0";
+			/delete-property/ label;
+		};
+
+		port@1 {
+			status = "okay";
+			openwrt,netdev-name = "eth1";
+			nvmem-cells = <&macaddr_factory_22 1>;
+			nvmem-cell-names = "mac-address";
+			/delete-property/ label;
+		};
+
+		port@2 {
+			status = "okay";
+			openwrt,netdev-name = "eth2";
+			nvmem-cells = <&macaddr_factory_22 2>;
+			nvmem-cell-names = "mac-address";
+			/delete-property/ label;
+		};
+
+		port@3 {
+			status = "okay";
+			openwrt,netdev-name = "eth3";
+			nvmem-cells = <&macaddr_factory_22 3>;
+			nvmem-cell-names = "mac-address";
+			/delete-property/ label;
+		};
+
+		port@4 {
+			status = "okay";
+			openwrt,netdev-name = "eth4";
+			nvmem-cells = <&macaddr_factory_22 4>;
+			nvmem-cell-names = "mac-address";
+			/delete-property/ label;
+		};
+
+		/*
+		 * EXPERIMENTAL: cascade link to the RTL8367C, testing the
+		 * theory that the RTL8367C's CPU-facing extif is physically
+		 * wired to MT7530's own port@5 MAC-only breakout rather than
+		 * to the SoC's &gmac1 directly. Precedent:
+		 * mt7621_ubnt_edgerouter-x-sfp.dts overrides &rgmii2_pins to
+		 * "gpio" (freeing gmac1's physical pins for other use), which
+		 * is why this port exists at all on this board family.
+		 */
+		switch0_link5: port@5 {
+			reg = <5>;
+			/*
+			 * Plain "rgmii", matching stock. Was "rgmii-txid" on
+			 * the (guessed) precedent of kirkwood-l-50 / vf610-zii
+			 * using a delay-carrying phy-mode on both ends of a
+			 * cascade wire — but stock's own registers say
+			 * otherwise, and it broke the TX direction.
+			 *
+			 * mt7530_setup_port5() writes
+			 * CSR_RGMII_TXC_CFG(0x10 + tx_delay) to P5RGMIITXCR
+			 * (0x7b04), and our local patch sets tx_delay=4 for
+			 * rgmii-txid/rgmii-id -> 0x14. Read off live working
+			 * stock via `switch reg r 0x7b04`: **0x10**, i.e.
+			 * tx_delay=0. With 0x14 the CPU->RTL8367 direction
+			 * carried nothing (eth6 rx climbed steadily while tx
+			 * stayed at 0 and the board never answered ARP);
+			 * a wrong TX clock delay corrupts frames leaving
+			 * MT7530 port 5 without affecting the RX direction.
+			 * Plain "rgmii" leaves tx_delay=0 -> writes 0x10,
+			 * matching stock exactly. The RTL8367 end keeps its
+			 * own tx=1/rx=1 delays, which do match stock.
+			 */
+			phy-mode = "rgmii";
+
+			/*
+			 * NOT a DSA link port. This is a plain user port whose
+			 * netdev is the *conduit* for the RTL8367, which is a
+			 * separate DSA tree (see &switch1). Nested DSA.
+			 *
+			 * Why: the whole tree runs tag_mtk, and tag_mtk cannot
+			 * address a second switch. From net/dsa/tag_mtk.c:
+			 *   mtk_tag[1] = (1 << dp->index) & GENMASK(5, 0);
+			 *   skb->dev = dsa_conduit_find_user(dev, 0, port);
+			 * The xmit tag carries only dp->index — the port index
+			 * on the port's *own* switch — with no switch/device
+			 * field, and rcv hardcodes device 0 with a 3-bit source
+			 * port. So with the RTL8367 as dsa,member = <0 1>, a
+			 * frame for eth6 (RTL8367 port 1) was tagged "egress
+			 * port 1" and MT7530 sent it out its *own* port 1. It
+			 * never reached the RTL8367 — which is exactly what the
+			 * hardware showed: RTL8367 port 1 in_bcast climbing
+			 * while out_ucast/out_bcast stayed at 0.
+			 *
+			 * As two trees, each switch uses its own tagger: the
+			 * RTL8367 tags a frame for its port 1, hands it to this
+			 * netdev, and mtk then tags *that* for port 5. Each
+			 * hop is addressed by the switch that understands it.
+			 */
+			label = "cascade";
+			openwrt,netdev-name = "cascade";
+
+			fixed-link {
+				speed = <1000>;
+				full-duplex;
+				pause;
+			};
+		};
+	};
+};
+
+/*
+ * External RTL8367C (8-port) switch, reached over MT7530's MDIO bus at
+ * address 29 (0x1d). Confirmed on hardware: the chip answers there and the
+ * driver identifies it as an RTL8367RB-VB. An earlier guess of address 7
+ * found nothing.
+ *
+ * CPU-facing port cascades through MT7530's own port@5 breakout (see
+ * &switch0's port@5), NOT through &gmac1/RGMII2 directly — see the
+ * EXPERIMENTAL comment there. Handled by the mainline rtl8365mb DSA
+ * driver, which covers the RTL8367C chip family.
+ *
+ * User-port reg numbering and the extension-port index used for the CPU
+ * port are unconfirmed from static analysis alone — to be verified against
+ * live hardware.
+ */
+&mdio {
+	switch1: switch@1d {
+		compatible = "realtek,rtl8365mb";
+		reg = <29>;
+
+		/*
+		 * Tree 1, switch 0 — its OWN DSA tree, not member 1 of the
+		 * MT7530's tree. Was <0 1>, which could never work: that tree
+		 * runs tag_mtk, and tag_mtk has no switch-id field, so frames
+		 * for this chip's ports were addressed to MT7530's own ports
+		 * instead. See the long note on &switch0's port@5.
+		 *
+		 * As its own tree this chip uses its own tag protocol, and its
+		 * CPU port is conduited by the MT7530 user port "cascade".
+		 */
+		dsa,member = <1 0>;
+
+		/*
+		 * Confirmed via stock firmware's init_rtl8367s(): GPIO bank0
+		 * pin 7 is configured for both-edge triggering (rising+falling)
+		 * as the switch's cascading IRQ line, feeding the shared GIC.
+		 */
+		switch_intc: interrupt-controller {
+			interrupt-parent = <&gpio>;
+			interrupts = <7 IRQ_TYPE_EDGE_BOTH>;
+			interrupt-controller;
+			#address-cells = <0>;
+			#interrupt-cells = <1>;
+		};
+
+		mdio {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			rtlphy0: ethernet-phy@0 {
+				reg = <0>;
+			};
+
+			rtlphy1: ethernet-phy@1 {
+				reg = <1>;
+			};
+
+			rtlphy2: ethernet-phy@2 {
+				reg = <2>;
+			};
+
+			rtlphy3: ethernet-phy@3 {
+				reg = <3>;
+			};
+
+			rtlphy4: ethernet-phy@4 {
+				reg = <4>;
+			};
+		};
+
+		/*
+		 * These five carry "rtl0".."rtl4" as their DSA label but come up
+		 * as eth5-eth9, so the netdev names match the numbers printed on
+		 * the case (physical 0-9 -> eth0-eth9).
+		 *
+		 * The label cannot simply be "eth5" and friends. DSA uses label
+		 * as the netdev name at registration, and this tree registers
+		 * while the MT7530's five ports still hold the provisional names
+		 * the kernel handed them (eth1-eth5); they are not renamed down
+		 * to eth0-eth4 until userspace preinit runs. Asking for eth5
+		 * here therefore fails outright:
+		 *
+		 *   rtl8365mb-mdio mdio-bus:1d eth5 (uninitialized): PHY [...]
+		 *   mt7530-mdio mdio-bus:1f cascade: error -17 registering
+		 *       interface eth5
+		 *
+		 * -17 is EEXIST, and that port is then simply missing. eth6-eth9
+		 * are above the provisional range and would survive, so the
+		 * breakage is a single silently absent port.
+		 *
+		 * A label outside the ethN space sidesteps the clash entirely.
+		 * openwrt,netdev-name is applied afterwards by
+		 * base-files/lib/preinit/04_set_netdev_label, by which point the
+		 * MT7530 ports have cascaded down and freed eth5.
+		 */
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				openwrt,netdev-name = "eth5";
+				label = "rtl0";
+				nvmem-cells = <&macaddr_factory_22 5>;
+				nvmem-cell-names = "mac-address";
+				phy-handle = <&rtlphy0>;
+			};
+
+			port@1 {
+				reg = <1>;
+				openwrt,netdev-name = "eth6";
+				label = "rtl1";
+				nvmem-cells = <&macaddr_factory_22 6>;
+				nvmem-cell-names = "mac-address";
+				phy-handle = <&rtlphy1>;
+			};
+
+			port@2 {
+				reg = <2>;
+				openwrt,netdev-name = "eth7";
+				label = "rtl2";
+				nvmem-cells = <&macaddr_factory_22 7>;
+				nvmem-cell-names = "mac-address";
+				phy-handle = <&rtlphy2>;
+			};
+
+			port@3 {
+				reg = <3>;
+				openwrt,netdev-name = "eth8";
+				label = "rtl3";
+				nvmem-cells = <&macaddr_factory_22 8>;
+				nvmem-cell-names = "mac-address";
+				phy-handle = <&rtlphy3>;
+			};
+
+			port@4 {
+				reg = <4>;
+				openwrt,netdev-name = "eth9";
+				label = "rtl4";
+				nvmem-cells = <&macaddr_factory_22 9>;
+				nvmem-cell-names = "mac-address";
+				phy-handle = <&rtlphy4>;
+			};
+
+			switch1_link6: port@6 {
+				reg = <6>;
+				/*
+				 * This chip's CPU port. Its conduit is the
+				 * MT7530 user port "cascade" (&switch0_link5) —
+				 * nested DSA, because this switch is its own
+				 * tree. Was `link = <&switch0_link5>`, i.e. a
+				 * DSA cascade link within one tag_mtk tree,
+				 * which cannot address a second switch. See the
+				 * note on &switch0's port@5.
+				 */
+				ethernet = <&switch0_link5>;
+				phy-mode = "rgmii";
+				/*
+				 * Read back from the switch on a running board:
+				 * RGMXF for external interface 1 (register
+				 * 0x1307, which is the extint this port's
+				 * reg = <6> maps to) holds tx_delay = 1 and
+				 * rx_delay = 1, i.e. 2000ps and 300ps.
+				 */
+				rx-internal-delay-ps = <300>;
+				tx-internal-delay-ps = <2000>;
+
+				fixed-link {
+					speed = <1000>;
+					full-duplex;
+					pause;
+				};
+			};
+		};
+	};
+};
+
+&i2c {
+	status = "okay";
+
+	/*
+	 * PoE PSE controller on ports 0 and 9. IC markings and I2C address
+	 * TBD — requires opening the board to read the package label.
+	 *
+	 * poe_controller@XX {
+	 *     compatible = "TBD";
+	 *     reg = <0xXX>;
+	 * };
+	 */
+};
+
+&nand {
+	status = "okay";
+
+	/*
+	 * NAND needs both pad groups: "nand1" is the spi group (7 pins,
+	 * control) and "nand2" is the sdhci group (8 pins, the D0-D7 data
+	 * bus). Without nand2 every read returns a constant 0xe0 -- not
+	 * 0xff (a floating bus) and not the real ID -- because the data
+	 * lines are still in GPIO function.
+	 *
+	 * This is why "sdhci" is no longer in &state_default's gpio list:
+	 * two nodes claiming the same pads makes the pinctrl core reject
+	 * the second claim and take the whole probe down.
+	 */
+	pinctrl-names = "default";
+	pinctrl-0 = <&nand_pins>;
+
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		/*
+		 * Stock layout (from live DTB):
+		 *   Bootloader  0x000000  512KB
+		 *   Config      0x080000  384KB
+		 *   eeprom      0x0e0000  384KB  base MAC at eeprom+0x22
+		 *   Kernel1     0x140000  3MB
+		 *   Kernel2     0x440000  3MB
+		 *   RootFS      0x740000  ~252MB
+		 * OpenWrt merges Kernel1+Kernel2 into a single 6MB kernel slot.
+		 */
+
+		partition@0 {
+			label = "u-boot";
+			reg = <0x000000 0x080000>;
+			read-only;
+		};
+
+		partition@80000 {
+			label = "u-boot-env";
+			reg = <0x080000 0x060000>;
+			read-only;
+		};
+
+		partition@e0000 {
+			label = "factory";
+			reg = <0x0e0000 0x060000>;
+			/*
+			 * Deliberately writable, as it is on the EdgeRouter X.
+			 * Stock keeps two 3 MiB kernel slots, Kernel1 at
+			 * 0x140000 and Kernel2 at 0x440000, and picks between
+			 * them with a byte at factory+0xa0. OpenWrt replaces
+			 * both with the single 6 MiB "kernel" partition at
+			 * 0x140000, so sysupgrade has to force that byte to 0
+			 * or U-Boot carries on booting the second slot, which
+			 * is now the tail of OpenWrt's kernel. The write lives
+			 * in ubnt_update_kernel_flag() in
+			 * base-files/lib/upgrade/ubnt.sh, and a read-only
+			 * partition makes it fail the upgrade.
+			 *
+			 * u-boot and u-boot-env above stay read-only.
+			 */
+
+			/*
+			 * Base MAC at +0x22, the same layout and offset the
+			 * EdgeRouter X uses. U-Boot prints it as
+			 *   UBNT BD mac 74acb9eb4375
+			 * Without it mtk_soc_eth invents one random address
+			 * and hands the same one to every interface, which
+			 * changes on each boot and makes the bridge log
+			 * "received packet on ethN with own address as source"
+			 * whenever a LAN port and the WAN port share a switch.
+			 */
+			nvmem-layout {
+				compatible = "fixed-layout";
+				#address-cells = <1>;
+				#size-cells = <1>;
+
+				macaddr_factory_22: macaddr@22 {
+					compatible = "mac-base";
+					reg = <0x22 0x6>;
+					#nvmem-cell-cells = <1>;
+				};
+			};
+		};
+
+		partition@140000 {
+			label = "kernel";
+			reg = <0x140000 0x600000>;
+		};
+
+		partition@740000 {
+			label = "ubi";
+			reg = <0x740000 0x1f4c0000>;
+		};
+	};
+};
+
+/*
+ * The rgmii2 pin group has to be freed to GPIO on this board, which is not
+ * obvious and was the cause of a long standing "links up, no traffic at all"
+ * bug: the pads are wired to the RTL8367, not to a second RGMII MAC, so
+ * leaving them in rgmii2 function drives them against the switch.
+ *
+ * This matters even though &gmac1 is already status="disabled" here:
+ * mt7621.dtsi puts <&rgmii2_pins> in the *ethernet controller* node's
+ * pinctrl-0 (alongside mdio_pins and rgmii1_pins), not in gmac1's, so the
+ * pins are muxed to RGMII2 function whenever the ethernet controller
+ * probes — regardless of gmac1's status. Disabling gmac1 frees the MAC,
+ * not the pads.
+ *
+ * Why this is the prime suspect for the zero-traffic bug: stock's
+ * init_rtl8367s() does a raw GPIO bit-bang (clear bit 7, then set bit 7 in
+ * two further registers) as the literal first thing it does, before any SMI
+ * contact with the chip — almost certainly the RTL8367's reset/enable line.
+ * Those GPIO writes are inert unless the pads are in GPIO function. That
+ * makes this a necessary precondition for the whole switch-enable sequence,
+ * and it also means any attempt to replicate that GPIO sequence without
+ * first freeing these pads cannot work, whatever base address it uses.
+ *
+ * Only the two Ubiquiti EdgeRouters free rgmii2 in the whole ramips tree
+ * (this board and mt7621_ubnt_edgerouter-x-sfp.dts) — it is a
+ * board-specific pad repurposing, not a generic MT7621 setting.
+ *
+ * IMPLEMENTATION NOTE: this must be done by overriding the &rgmii2_pins
+ * node's function (the ER-X-SFP pattern), NOT by adding "rgmii2" to
+ * &state_default's group list. Tried the latter first and it hard-fails:
+ * state_default and the ethernet node's pinctrl-0 both then claim the same
+ * pads, and the pinctrl core rejects the second claim, taking the whole
+ * ethernet probe down with it:
+ *   pin io22 already requested by pinctrl; cannot claim for 1e100000.ethernet
+ *   could not request pin 22 (io22) from group rgmii2
+ *   mtk_soc_eth 1e100000.ethernet: Error applying setting, reverse things back
+ * Overriding the node instead leaves the ethernet node's existing claim on
+ * <&rgmii2_pins> intact and simply changes what function that claim applies,
+ * which reaches the same end state as stock with no conflict.
+ */
+&rgmii2_pins {
+	rgmii2 {
+		function = "gpio";
+	};
+};
+
+&state_default {
+	gpio {
+		/*
+		 * "sdhci" is claimed by &nand as nand2 (the D0-D7 data bus).
+		 *
+		 * "jtag" is pins 13-17, and the status LED hangs off two of
+		 * them, so the group has to be claimed as GPIO. Without it
+		 * pins 13-17 come up MUX UNCLAIMED and driving io13/io16 from
+		 * /sys/class/gpio does nothing at all -- the LED simply stays
+		 * whatever colour the bootloader left it, which makes it look
+		 * as though the pins are wrong rather than unrouted.
+		 */
+		groups = "uart2", "uart3", "jtag";
+		function = "gpio";
+	};
+};
+
+&spi0 {
+	status = "disabled";
+};
+
+&usb_phy {
+	status = "okay";
+};
+
+&xhci {
+	status = "okay";
+};

@@ -3305,6 +3305,30 @@ define Device/ubnt_edgerouter-x-sfp
 endef
 TARGET_DEVICES += ubnt_edgerouter-x-sfp
 
+define Device/ubnt_edgerouter-10x
+  $(Device/ubnt_edgerouter_common)
+  DEVICE_MODEL := EdgeRouter 10X
+  IMAGE_SIZE := 512000k
+  # This board is a switch, not a router. Shipping the stock DHCP server
+  # turns it into a rogue DHCP server the moment it is plugged into an
+  # existing LAN -- it was observed handing out leases alongside the real
+  # router -- so drop dnsmasq and odhcpd rather than rely on the admin
+  # remembering to disable them.
+  DEVICE_PACKAGES += kmod-dsa-rtl8365mb ethtool tcpdump gpiod-tools \
+	-dnsmasq -odhcpd-ipv6only
+  # Drop the compat version the EdgeRouter X sets in the common definition.
+  # It exists to refuse upgrades to ER-X installs predating its partition
+  # table change, and forces them through a documented migration. This board
+  # has never had an earlier layout to migrate from, so inheriting 2.0 only
+  # means board.d/05_compat-version gives the running system the 1.1 default,
+  # every sysupgrade is refused on a major version mismatch, and the user is
+  # sent to an ER-X wiki page describing a migration that does not apply.
+  DEVICE_COMPAT_VERSION := 1.1
+  DEVICE_COMPAT_MESSAGE :=
+  SUPPORTED_DEVICES += ubnt-er10x ubiquiti,edgerouter-10x
+endef
+TARGET_DEVICES += ubnt_edgerouter-10x
+
 define Device/ubnt_unifi-6-lite
   DEVICE_COMPAT_VERSION := 2.0
   DEVICE_COMPAT_MESSAGE := \

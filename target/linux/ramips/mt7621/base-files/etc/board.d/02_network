@@ -182,6 +182,37 @@ ramips_setup_interfaces()
 	tplink,tl-wpa8631p-v3)
 		ucidef_set_interface_lan "lan1 lan2 lan3 plc0"
 		;;
+	ubnt,edgerouter-10x)
+		# All ten ports are LAN. This board is used as a switch, not a
+		# router, so there is deliberately no WAN: carving eth0 off as
+		# WAN puts a DHCP client on the same subnet as the bridge, and
+		# the resulting duplicate route makes the device's own services
+		# (LuCI, ssh) unreachable even though it still answers ping.
+		#
+		# eth0-eth4 are the MT7530's own ports; eth5-eth9 are the
+		# external RTL8367's, reached through a nested DSA tree whose
+		# conduit is the MT7530 user port "cascade". "cascade" is
+		# deliberately NOT listed here: it carries the inner switch's
+		# tagged frames and must not be bridged. DSA opens it on its
+		# own when any eth5-eth9 port is brought up.
+		#
+		# DHCP rather than the usual static address. This board is a
+		# switch with no WAN and no RTC: there is no battery backed
+		# clock, and the SoC has no RTC block, so it powers on at 1970
+		# every time. uhttpd mints its self signed certificate during
+		# boot, so on a static address with no gateway there is nothing
+		# for sysntpd to reach, the clock never advances, and LuCI ends
+		# up serving a certificate stamped 2001 that browsers reject --
+		# permanently, until somebody configures a route by hand.
+		# Taking an address, gateway and resolver from the network gets
+		# the clock right on first boot and the certificate is minted
+		# correctly without intervention.
+		#
+		# If there is no DHCP server the switch comes up with no
+		# address; recovery is the reset button into failsafe, which
+		# always answers on 192.168.1.1.
+		ucidef_set_interface_lan "eth0 eth1 eth2 eth3 eth4 eth5 eth6 eth7 eth8 eth9" "dhcp"
+		;;
 	ubnt,edgerouter-x)
 		ucidef_set_interfaces_lan_wan "eth1 eth2 eth3 eth4" "eth0"
 		;;

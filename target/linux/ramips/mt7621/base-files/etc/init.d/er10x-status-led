@@ -1,0 +1,37 @@
+#!/bin/sh /etc/rc.common
+# diag.sh turns the status LED solid on the "done" state, which procd raises
+# when it has finished starting services. On this board that is noticeably
+# early: the DSA links do not settle until around 30 seconds in, so the LED
+# claims the boot is over while the switch is still coming up.
+#
+# Hold the blink until br-lan actually reports carrier, so solid white means
+# "switching traffic" rather than "init returned". Runs in the background so
+# it does not hold up the rest of the boot, and gives up after a couple of
+# minutes so a board with nothing plugged in does not blink forever.
+
+START=96
+
+LED=/sys/class/leds/white:status
+
+boot() {
+	. /lib/functions.sh
+
+	[ "$(board_name)" = "ubnt,edgerouter-10x" ] || return 0
+	[ -d "$LED" ] || return 0
+
+	(
+		echo timer > "$LED/trigger"
+		echo 250 > "$LED/delay_on"
+		echo 250 > "$LED/delay_off"
+
+		i=0
+		while [ "$i" -lt 120 ]; do
+			[ "$(cat /sys/class/net/br-lan/operstate 2>/dev/null)" = "up" ] && break
+			sleep 1
+			i=$((i + 1))
+		done
+
+		echo none > "$LED/trigger"
+		echo 1 > "$LED/brightness"
+	) &
+}

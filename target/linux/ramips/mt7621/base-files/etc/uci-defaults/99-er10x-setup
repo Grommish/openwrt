@@ -1,0 +1,32 @@
+#!/bin/sh
+
+. /lib/functions.sh
+
+[ "$(board_name)" = "ubnt,edgerouter-10x" ] || exit 0
+
+# Make br-lan a bridge that can never win the spanning tree root election.
+#
+# STP is left off, so this does nothing today -- it is there for the moment
+# somebody turns it on from LuCI. OpenWrt defaults a bridge to priority 32767,
+# one *below* the 32768 that switches and routers use, so an OpenWrt bridge
+# with STP enabled beats stock infrastructure and becomes root. That was not
+# theoretical: with STP switched on, this ten port leaf appliance took the
+# root role for the whole LAN, and the upstream managed switch agreed, naming
+# it as designated root. 61440 is the conventional "never root" value and puts
+# the election back where it belongs.
+#
+# STP itself stays off because the kernel bridge has no portfast/edge concept:
+# every port, including the ones people plug laptops into, sits blocked for the
+# full forward delay. Measured on this board: 34 seconds from link up to
+# forwarding. If loop protection is wanted, RSTP via mstpd is the answer -- it
+# transitions edge ports in about a second -- not a bare 'option stp 1'.
+brdev=$(uci show network | sed -n "s/^network\.\(@device\[[0-9]*\]\)\.name='br-lan'$/\1/p")
+[ -n "$brdev" ] && uci -q set "network.$brdev.priority=61440"
+
+uci -q commit network
+
+# Init scripts shipped in a target's base-files do not get an rc.d symlink the
+# way a package's do, so enable it here.
+/etc/init.d/er10x-status-led enable
+
+exit 0

@@ -1,0 +1,31 @@
+# This board has no RTC, and an initramfs carries normalised file timestamps,
+# so the clock reads 1970 until sysntpd syncs. uhttpd generates its self-signed
+# certificate from its own init script, long before that, and px5g stamps it
+# 2001-2002 -- so LuCI comes up on https with a certificate every browser
+# rejects as already expired.
+#
+# Once the clock is real, reissue any certificate that was minted while it was
+# not. Keyed off the certificate's own mtime rather than its notBefore field,
+# because there is no openssl on the device to parse it with.
+
+[ "$ACTION" = stratum ] || exit 0
+
+. /lib/functions.sh
+
+[ "$(board_name)" = "ubnt,edgerouter-10x" ] || exit 0
+
+[ -f /etc/uhttpd.crt ] || exit 0
+
+# ntpd raises the first stratum event when it selects a peer, which can be
+# before it has actually stepped the clock. Reissuing then just mints another
+# 1970-stamped certificate, and nothing would retry it -- so wait for the clock
+# itself to be sane and let a later event (busybox ntpd also reports "step" and
+# "periodic") do the work.
+now=$(date +%Y 2>/dev/null) || exit 0
+[ "$now" -ge 2020 ] 2>/dev/null || exit 0
+
+year=$(date -r /etc/uhttpd.crt +%Y 2>/dev/null) || exit 0
+[ "$year" -lt 2020 ] 2>/dev/null || exit 0
+
+rm -f /etc/uhttpd.crt /etc/uhttpd.key
+/etc/init.d/uhttpd restart

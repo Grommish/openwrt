@@ -1,0 +1,26 @@
+# sysntpd starts at S98 with the pool servers given as hostnames, and busybox
+# ntpd resolves them once, at startup. On this board that happens before there
+# is anything to resolve with: the LAN takes DHCP, so the resolver only appears
+# when the lease lands, several seconds after ntpd has already given up on all
+# four peers. Nothing then puts it right -- sysntpd only registers an interface
+# trigger when it is acting as a server (enable_server), which is not the case
+# here -- so the clock stays wherever sysfixtime left it, indefinitely.
+#
+# Measured: with pool hostnames the clock sat 54882 seconds out and had not
+# moved after five and a half minutes; with the same servers given as literal
+# addresses it synced within thirty seconds of boot. The difference is purely
+# name resolution at startup.
+#
+# Restarting sysntpd once the interface is actually up costs nothing and lets
+# the hostnames resolve.
+
+[ "$ACTION" = ifup ] || exit 0
+[ "$INTERFACE" = lan ] || exit 0
+
+. /lib/functions.sh
+
+[ "$(board_name)" = "ubnt,edgerouter-10x" ] || exit 0
+[ -x /etc/init.d/sysntpd ] || exit 0
+/etc/init.d/sysntpd enabled || exit 0
+
+/etc/init.d/sysntpd restart >/dev/null 2>&1 &

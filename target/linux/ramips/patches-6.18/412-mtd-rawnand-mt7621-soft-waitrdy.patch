@@ -1,0 +1,55 @@
+From: Donald Hoskins <grommish@gmail.com>
+Subject: [PATCH] mtd: rawnand: mt7621: poll the status register for ready
+
+The controller's ready/busy path reports "busy" permanently on the
+Ubiquiti EdgeRouter 10X: NFI_STA bit 8 is already set immediately after
+mt7621_nfc_hw_init(), before the chip has been touched at all
+(STA=0x00001100, MASTER_STA=0x0000, nfi_clk=125MHz). Every WAITRDY
+instruction therefore times out with -ETIMEDOUT and detection never gets
+as far as READID, so the chip is never found even though U-Boot reads it
+without trouble.
+
+Use nand_soft_waitrdy(), which polls the chip's own status register and
+needs no R/B# signal at all. Boards where the hardware path does work are
+unaffected in behaviour; they just poll over the bus instead.
+
+Signed-off-by: Donald Hoskins <grommish@gmail.com>
+---
+--- a/drivers/mtd/nand/raw/mt7621_nand.c
++++ b/drivers/mtd/nand/raw/mt7621_nand.c
+@@ -623,16 +623,6 @@
+ 	}
+ }
+ 
+-static int mt7621_nfc_dev_ready(struct mt7621_nfc *nfc,
+-				unsigned int timeout_ms)
+-{
+-	u32 val;
+-
+-	return readl_poll_timeout_atomic(nfc->nfi_regs + NFI_STA, val,
+-					 !(val & STA_BUSY), 10,
+-					 timeout_ms * 1000);
+-}
+-
+ static int mt7621_nfc_exec_instr(struct nand_chip *nand,
+ 				 const struct nand_op_instr *instr)
+ {
+@@ -655,8 +645,16 @@
+ 				      instr->ctx.data.len);
+ 		return 0;
+ 	case NAND_OP_WAITRDY_INSTR:
+-		return mt7621_nfc_dev_ready(nfc,
+-					    instr->ctx.waitrdy.timeout_ms);
++		/*
++		 * The hardware ready/busy path reports "busy" permanently on
++		 * this board: NFI_STA bit 8 is already set straight after
++		 * mt7621_nfc_hw_init(), before the chip is touched at all
++		 * (STA=0x00001100, MASTER_STA=0, nfi_clk=125MHz), so every
++		 * WAITRDY times out and detection never gets as far as
++		 * READID. Poll the chip's own status register instead, which
++		 * needs no R/B# signal.
++		 */
++		return nand_soft_waitrdy(nand, instr->ctx.waitrdy.timeout_ms);
+ 	default:
+ 		WARN_ONCE(1, "unsupported NAND instruction type: %d\n",
+ 			  instr->type);
