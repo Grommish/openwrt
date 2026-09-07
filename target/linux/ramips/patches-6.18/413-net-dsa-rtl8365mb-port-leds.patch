@@ -1,0 +1,110 @@
+From: Donald Hoskins <grommish@gmail.com>
+Subject: [PATCH] net: dsa: realtek: rtl8365mb: drive the port LEDs
+
+The driver never touches the LED block, so the controller comes up with
+its reset defaults and the port LEDs indicate nothing useful: on the
+EdgeRouter 10X they simply sit solid on for as long as a port is linked.
+
+Two things are wrong out of reset. PARA_LED_IO_EN1/2 are the per-port
+bitmasks selecting which ports the LED controller actually drives, and
+they are zero, so it drives none. And while LED group 0 defaults to
+LED_CONFIG_LINK_ACT, groups 1 and 2 default to the speed-only modes
+SPD1000/SPD100, which stay lit for the entire time a port is linked at
+that speed.
+
+Enable the user ports as LED outputs and point groups 0-2 at
+link+activity. Which group a board wires its port LED to is a layout
+choice that cannot be discovered from the chip, so configure all three
+rather than guess at one.
+
+Verified on an EdgeRouter 10X: port LEDs previously solid whenever the
+port was linked now blink with traffic.
+
+Signed-off-by: Donald Hoskins <grommish@gmail.com>
+---
+--- a/drivers/net/dsa/realtek/rtl8365mb_main.c
++++ b/drivers/net/dsa/realtek/rtl8365mb_main.c
+@@ -123,6 +123,22 @@
+ #define RTL8365MB_MAX_NUM_EXTINTS	3
+ 
+ /* Chip identification registers */
++/* LED control
++ *
++ * LED_CONFIGURATION holds one 4-bit indication mode per LED group; group 0
++ * defaults to LED_CONFIG_LINK_ACT (2), i.e. on at link, blinking on traffic.
++ * PARA_LED_IO_EN1/2 are the per-port bitmasks that decide which ports the
++ * LED controller actually drives, one byte per group, and they come out of
++ * reset as zero -- so with no driver support the controller drives nothing
++ * and the port LEDs just sit at whatever the pins idle to.
++ */
++#define RTL8365MB_LED_CONFIGURATION_REG		0x1b03
++#define   RTL8365MB_LED_CONFIGURATION_GRP_MASK(g)	(0xf << ((g) * 4))
++#define   RTL8365MB_LED_CONFIG_LINK_ACT		2
++#define RTL8365MB_PARA_LED_IO_EN_REG(g)		(0x1b24 + ((g) / 2))
++#define   RTL8365MB_PARA_LED_IO_EN_MASK(g)	(0xff << (((g) % 2) * 8))
++#define   RTL8365MB_PARA_LED_IO_EN_VAL(g, pm)	((pm) << (((g) % 2) * 8))
++
+ #define RTL8365MB_CHIP_ID_REG		0x1300
+ 
+ #define RTL8365MB_CHIP_VER_REG		0x1301
+@@ -2994,6 +3010,48 @@
+ 					20000, 1e6);
+ }
+ 
++/* Point LED group 0 at the user ports so the controller drives their LEDs.
++ * Without this the port LEDs never indicate anything: the group is already
++ * configured for link+activity, but no port is enabled as an LED output.
++ */
++static int rtl8365mb_led_setup(struct dsa_switch *ds)
++{
++	struct realtek_priv *priv = ds->priv;
++	u32 portmask = 0;
++	struct dsa_port *dp;
++	int ret, grp;
++
++	dsa_switch_for_each_user_port(dp, ds)
++		portmask |= BIT(dp->index);
++
++	if (!portmask)
++		return 0;
++
++	/* Point every LED group at link+activity. Out of reset group 0 is
++	 * already LINK_ACT but groups 1/2 are speed-only (SPD1000/SPD100),
++	 * which sit solid on for the whole time a port is linked at that
++	 * speed. Which group a board actually wires its port LED to is a
++	 * layout choice, so configure all of them rather than guess.
++	 */
++	for (grp = 0; grp < 3; grp++) {
++		ret = regmap_update_bits(priv->map,
++					 RTL8365MB_LED_CONFIGURATION_REG,
++					 RTL8365MB_LED_CONFIGURATION_GRP_MASK(grp),
++					 RTL8365MB_LED_CONFIG_LINK_ACT << (grp * 4));
++		if (ret)
++			return ret;
++
++		ret = regmap_update_bits(priv->map,
++					 RTL8365MB_PARA_LED_IO_EN_REG(grp),
++					 RTL8365MB_PARA_LED_IO_EN_MASK(grp),
++					 RTL8365MB_PARA_LED_IO_EN_VAL(grp, portmask));
++		if (ret)
++			return ret;
++	}
++
++	return 0;
++}
++
+ static int rtl8365mb_setup(struct dsa_switch *ds)
+ {
+ 	struct realtek_priv *priv = ds->priv;
+@@ -3179,6 +3237,11 @@
+ 		goto out_teardown_irq;
+ 	}
+ 
++	ret = rtl8365mb_led_setup(ds);
++	if (ret)
++		dev_warn(priv->dev, "failed to set up port LEDs: %pe\n",
++			 ERR_PTR(ret));
++
+ 	/* Start statistics counter polling */
+ 	ret = rtl8365mb_stats_setup(priv);
+ 	if (ret) {

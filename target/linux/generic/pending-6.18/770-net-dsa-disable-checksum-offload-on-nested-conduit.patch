@@ -1,0 +1,120 @@
+From: Donald Hoskins <grommish@gmail.com>
+Subject: [PATCH] net: dsa: turn off checksum and TSO offload on a nested conduit
+
+A DSA tree may be conduited by a user port of another DSA tree, so that
+frames for the inner tree carry two tags: one for the inner switch and
+one for the outer. The Ubiquiti EdgeRouter 10X is built this way -- an
+RTL8367C hangs off an MT7530 user port over RGMII, and tag_mtk has no
+switch id field, so a single tree cannot address the second switch.
+
+Nothing tells the Ethernet MAC that the frame it is about to transmit is
+tagged twice. On MT7621 the checksum engine parses one MTK special tag,
+finds the wrong offset for the L4 header on a doubly tagged frame, and
+writes the checksum in the wrong place. Every locally generated TCP and
+UDP packet leaves the board corrupt and peers drop it silently. The
+symptom is that a host on the inner switch can ping the board and route
+through it, but no TCP connection to it ever completes -- forwarded
+traffic already carries a complete checksum and ICMP is checksummed in
+software, so both keep working and hide the fault. The same applies to
+segmentation: hardware TSO on a doubly tagged frame is equally wrong.
+
+Fix it where the nesting becomes known. When a conduit is itself a DSA
+user port, clear its checksum and segmentation features so the core
+completes both in software in validate_xmit_skb() before the frame is
+handed to the outer tree.
+
+Doing it on the conduit rather than on the inner tree's user ports
+matters. The user ports are bridge members, and a bridge advertises the
+intersection of its members' features, so clearing them there would
+strip offload from the bridge device and penalise the outer switch's
+ports too. The conduit is not a bridge member, so the outer tree's user
+ports keep hardware offload.
+
+On the EdgeRouter 10X this is worth 410 -> 760 Mbit/s of board
+terminated egress on the outer switch's ports, measured with iperf3,
+while keeping the inner switch's ports correct.
+
+Signed-off-by: Donald Hoskins <grommish@gmail.com>
+--- a/include/net/dsa.h
++++ b/include/net/dsa.h
+@@ -249,6 +249,12 @@
+ 		struct net_device *user;
+ 	};
+ 
++	/* Offload features stripped from the conduit because it is itself a
++	 * DSA user port, so frames leaving this tree are tagged twice. Kept
++	 * so they can be handed back on teardown. CPU ports only.
++	 */
++	netdev_features_t	conduit_stripped_features;
++
+ 	/* Copy of the tagging protocol operations, for quicker access
+ 	 * in the data path. Valid only for the CPU ports.
+ 	 */
+--- a/net/dsa/conduit.c
++++ b/net/dsa/conduit.c
+@@ -416,6 +416,37 @@
+ 			   "Unable to reset MTU to exclude DSA overheads\n");
+ }
+ 
++/* A conduit that is itself a DSA user port means the frames it carries are
++ * tagged twice, once for this tree and once for the tree the conduit belongs
++ * to. An Ethernet MAC parsing a single tag will compute a checksum, or cut a
++ * TSO segment, at the wrong offset. Hand both back to the software path.
++ *
++ * This is deliberately applied to the conduit and not to this tree's user
++ * ports: those are bridge members, a bridge advertises the intersection of
++ * its members' features, and stripping them there would disable offload for
++ * the whole bridge -- including the ports of the tree above, which are singly
++ * tagged and perfectly able to use it.
++ */
++static void dsa_conduit_fixup_nested_features(struct net_device *dev,
++					      struct dsa_port *cpu_dp)
++{
++	netdev_features_t strip = NETIF_F_CSUM_MASK | NETIF_F_ALL_TSO;
++
++	if (!dsa_user_dev_check(dev))
++		return;
++
++	cpu_dp->conduit_stripped_features = dev->features & strip;
++	if (!cpu_dp->conduit_stripped_features)
++		return;
++
++	dev->features &= ~strip;
++	dev->hw_features &= ~strip;
++	dev->wanted_features &= ~strip;
++
++	netdev_info(dev,
++		    "nested DSA conduit, disabling checksum and TSO offload\n");
++}
++
+ int dsa_conduit_setup(struct net_device *dev, struct dsa_port *cpu_dp)
+ {
+ 	const struct dsa_device_ops *tag_ops = cpu_dp->tag_ops;
+@@ -450,6 +481,8 @@
+ 	 */
+ 	wmb();
+ 
++	dsa_conduit_fixup_nested_features(dev, cpu_dp);
++
+ 	dev->dsa_ptr = cpu_dp;
+ 
+ 	dsa_conduit_set_promiscuity(dev, 1);
+@@ -473,8 +506,18 @@
+ 
+ void dsa_conduit_teardown(struct net_device *dev)
+ {
++	struct dsa_port *cpu_dp = dev->dsa_ptr;
++
+ 	sysfs_remove_group(&dev->dev.kobj, &dsa_group);
+ 	dsa_conduit_ethtool_teardown(dev);
++
++	if (cpu_dp && cpu_dp->conduit_stripped_features) {
++		dev->features |= cpu_dp->conduit_stripped_features;
++		dev->hw_features |= cpu_dp->conduit_stripped_features;
++		dev->wanted_features |= cpu_dp->conduit_stripped_features;
++		cpu_dp->conduit_stripped_features = 0;
++	}
++
+ 	dsa_conduit_reset_mtu(dev);
+ 	dsa_conduit_set_promiscuity(dev, -1);
+ 
